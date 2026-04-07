@@ -1,0 +1,109 @@
+name: Actualizar datos BigQuery
+
+on:
+  schedule:
+    - cron: '0 11 * * *'  # 6:00 AM Colombia (UTC-5)
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      - name: Query BigQuery
+        run: |
+          bq query --use_legacy_sql=false --format=json --max_rows=10000 "
+          WITH base AS (
+            SELECT
+              tni.nid, tiv.fuente_id, DATE(tni.fecha_creacion) AS fecha,
+              CASE WHEN tni.last_estado_id IN (7,39) THEN 1 ELSE 0 END AS ei,
+              IF(tiv.area IS NULL OR tiv.area = 0,1,0) AS fa, IF(tiv.banos IS NULL OR tiv.banos = 0,1,0) AS fb,
+              IF(tiv.num_habitaciones IS NULL OR tiv.num_habitaciones = 0,1,0) AS fh, IF(tiv.anos_antiguedad IS NULL,1,0) AS fn,
+              IF(tiv.tipo_inmueble_id IS NULL,1,0) AS ft, IF(tl.lote_id IS NULL,1,0) AS fl,
+              IF(tl.direccion IS NULL OR tl.direccion = '',1,0) AS fd, IF(tiv.garajes IS NULL,1,0) AS fg,
+              IF(tiv.num_ascensores IS NULL,1,0) AS fc
+            FROM \`papyrus-data.habi_db.tabla_negocio_inmueble\` tni
+            LEFT JOIN \`papyrus-data.habi_db.tabla_inmueble_v2\` tiv ON tiv.id = tni.inmueble_id
+            LEFT JOIN \`papyrus-data.habi_db.tabla_localizacion_inmueble_v2\` tl ON tiv.localizacion_new_id = tl.id
+            WHERE DATE(tni.fecha_creacion) >= '2024-01-01' AND tiv.fuente_id IN (3,7,20,35,39,47)
+          ),
+          monthly AS (
+            SELECT 'M' AS g, fuente_id AS f, FORMAT_DATE('%Y-%m',fecha) AS p,
+              COUNT(*) t, COUNTIF(ei=1) i,
+              COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
+              COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
+              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
+            FROM base GROUP BY f,p
+          ),
+          week_periods AS (
+            SELECT DISTINCT DATE_TRUNC(fecha, ISOWEEK) AS ws FROM base
+            WHERE DATE_TRUNC(fecha, ISOWEEK) < DATE_TRUNC(CURRENT_DATE(), ISOWEEK)
+            ORDER BY ws DESC LIMIT 25
+          ),
+          weekly AS (
+            SELECT 'W' AS g, fuente_id AS f,
+              FORMAT_DATE('%Y-W%V', DATE_TRUNC(fecha, ISOWEEK)) AS p,
+              COUNT(*) t, COUNTIF(ei=1) i,
+              COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
+              COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
+              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
+            FROM base
+            WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT ws FROM week_periods)
+            GROUP BY f,p
+          ),
+          day_periods AS (
+            SELECT DISTINCT fecha FROM base
+            WHERE fecha < CURRENT_DATE()
+            ORDER BY fecha DESC LIMIT 25
+          ),
+          daily AS (
+            SELECT 'D' AS g, fuente_id AS f, CAST(fecha AS STRING) AS p,
+              COUNT(*) t, COUNTIF(ei=1) i,
+              COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
+              COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
+              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
+            FROM base
+            WHERE fecha IN (SELECT fecha FROM day_periods)
+            GROUP BY f,p
+          )
+          SELECT * FROM monthly UNION ALL SELECT * FROM weekly UNION ALL SELECT * FROM daily
+          ORDER BY g,f,p
+          " > /tmp/bq_raw.json
+
+      - name: Process and update data.json
+        run: |
+          python3 -c "
+          import json
+          with open('/tmp/bq_raw.json') as f:
+              data = json.load(f)
+          for r in data:
+              for k in ['f','t','i','a','b','h','n','ti','l','d','ga','ac']:
+                  r[k] = int(r[k])
+          with open('data.json','w') as f:
+              json.dump(data, f, separators=(',',':'))
+          print(f'Rows: {len(data)}')
+          "
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-update data.json $(date -u +%Y-%m-%d)"
+            git push
+          fi
