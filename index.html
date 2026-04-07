@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablero Leads Incompletos - Colombia</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 22px; font-weight: 600; color: #f8fafc; }
+  .header h1 span { color: #818cf8; }
+  .header .refresh-info { font-size: 13px; color: #64748b; }
+
+  .controls { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: stretch; }
+  .control-card { background: #1e293b; border-radius: 10px; border: 1px solid #334155; padding: 14px 20px; }
+  .control-card.grow { flex: 1; }
+  .control-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 8px; }
+
+  .filter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .filter-bar label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #cbd5e1; cursor: pointer; padding: 4px 10px; border-radius: 6px; transition: background 0.15s; }
+  .filter-bar label:hover { background: #334155; }
+  .filter-bar input[type="checkbox"] { accent-color: #818cf8; width: 15px; height: 15px; cursor: pointer; }
+  .filter-bar .select-all { border-right: 1px solid #334155; padding-right: 14px; }
+  .fuente-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 3px; font-weight: 600; }
+
+  select.granularity { background: #334155; color: #e2e8f0; border: 1px solid #4b5563; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: 500; }
+  select.granularity:focus { outline: none; border-color: #818cf8; }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+  .kpi { background: #1e293b; border-radius: 10px; padding: 18px; border: 1px solid #334155; }
+  .kpi .label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .kpi .value { font-size: 28px; font-weight: 700; color: #f8fafc; }
+  .kpi .sub { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .kpi.alert .value { color: #f87171; }
+  .kpi.ok .value { color: #34d399; }
+
+  .table-container { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow-x: auto; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  thead th { background: #334155; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 12px 14px; text-align: right; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
+  thead th:first-child { text-align: left; min-width: 280px; position: sticky; left: 0; z-index: 3; background: #334155; border-right: 2px solid #4b5563; }
+  tbody td { padding: 10px 14px; text-align: right; border-top: 1px solid #283548; white-space: nowrap; }
+  tbody td:first-child { text-align: left; font-weight: 500; color: #cbd5e1; position: sticky; left: 0; z-index: 1; background: #1e293b; border-right: 2px solid #4b5563; }
+  tbody tr { background: #1e293b; }
+  tbody tr:hover td { background: #263348; }
+  tbody tr:hover td:first-child { background: #263348; }
+  tbody tr.row-total td { font-weight: 700; color: #f8fafc; font-size: 14px; background: #1a2744; }
+  tbody tr.row-total td:first-child { background: #1a2744; }
+  tbody tr.row-incompletos td { font-weight: 700; color: #f87171; font-size: 14px; background: #271a2e; }
+  tbody tr.row-incompletos td:first-child { background: #271a2e; }
+  tbody tr.row-separator td { padding: 0; height: 3px; background: #0f172a; border: none; }
+  tbody tr.row-separator td:first-child { background: #0f172a; border-right-color: #0f172a; }
+  tbody tr.row-group-header td { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #818cf8; padding: 8px 14px; background: #172033; border: none; }
+  tbody tr.row-group-header td:first-child { background: #172033; }
+
+  .bar-cell { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .bar-bg { width: 60px; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .bar-fill.high { background: #f87171; } .bar-fill.med { background: #fbbf24; } .bar-fill.low { background: #34d399; }
+
+  .chart-section { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .chart-card { background: #1e293b; border-radius: 10px; border: 1px solid #334155; padding: 20px; }
+  .chart-card h3 { font-size: 14px; color: #94a3b8; margin-bottom: 14px; }
+  canvas { width: 100% !important; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="header">
+  <h1>Leads Incompletos — <span>Colombia</span></h1>
+  <div class="refresh-info"><span id="lastUpdate"></span></div>
+</div>
+
+<div class="controls">
+  <div class="control-card">
+    <div class="control-label">Granularidad</div>
+    <select class="granularity" id="granSelect" onchange="onUpdate()">
+      <option value="M" selected>Mensual</option>
+      <option value="W">Semanal (lun-dom)</option>
+      <option value="D">Diario</option>
+    </select>
+  </div>
+  <div class="control-card grow">
+    <div class="control-label">Fuentes</div>
+    <div class="filter-bar" id="filterBar">
+      <label class="select-all"><input type="checkbox" id="chkAll" checked onchange="toggleAll(this.checked)"> Todas</label>
+    </div>
+  </div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+<div class="chart-section">
+  <div class="chart-card"><h3 id="chartPctTitle">% Incompletos por período</h3><canvas id="chartPct"></canvas></div>
+  <div class="chart-card"><h3>Variables faltantes en Incompletos (último período completo)</h3><canvas id="chartVars"></canvas></div>
+</div>
+<div class="table-container">
+  <table id="mainTable"><thead><tr><th>Métrica</th></tr></thead><tbody></tbody></table>
+</div>
+
+<script>
+const FUENTES = {
+  3:{name:'WEB',color:'#818cf8'}, 7:{name:'Estudio Inmueble',color:'#34d399'},
+  20:{name:'CRM',color:'#fbbf24'}, 35:{name:'Comercial',color:'#f87171'},
+  39:{name:'Broker',color:'#fb923c'}, 47:{name:'Lead Forms',color:'#a78bfa'}
+};
+const LABELS = {
+  total:'Total registros', incompletos:'Incompletos',
+  sin_garajes:'Sin garajes (garage)', sin_banos:'Sin baños (bath)',
+  sin_habitaciones:'Sin habitaciones (room_num)', sin_area:'Sin área (area)',
+  sin_antiguedad:'Sin antigüedad (years_old)', sin_ascensor:'Sin ascensor',
+  sin_lote_id:'Sin lote_id (geolocalización)', sin_direccion:'Sin dirección en localización (tl)',
+  sin_tipo_inmueble_id:'Sin tipo inmueble id'
+};
+const COMP_VARS = ['sin_garajes','sin_banos','sin_habitaciones','sin_area','sin_antiguedad'];
+const OTHER_VARS = ['sin_ascensor','sin_lote_id','sin_direccion','sin_tipo_inmueble_id'];
+// Field mapping from compact BQ keys to readable keys
+const FMAP = {t:'total',i:'incompletos',a:'sin_area',b:'sin_banos',h:'sin_habitaciones',n:'sin_antiguedad',ti:'sin_tipo_inmueble_id',l:'sin_lote_id',d:'sin_direccion',ga:'sin_garajes',ac:'sin_ascensor'};
+const NUM_FIELDS = Object.values(FMAP);
+const SHOW_COUNT = 20;
+
+let chartPct, chartVars, RAW = [];
+
+// Build checkboxes
+const fb = document.getElementById('filterBar');
+Object.entries(FUENTES).forEach(([id,f]) => {
+  const lbl = document.createElement('label');
+  lbl.innerHTML = `<input type="checkbox" class="fuente-chk" value="${id}" checked onchange="onUpdate()"> ${f.name} <span class="fuente-tag" style="background:${f.color}30;color:${f.color}">ID ${id}</span>`;
+  fb.appendChild(lbl);
+});
+
+function toggleAll(c) { document.querySelectorAll('.fuente-chk').forEach(x=>x.checked=c); onUpdate(); }
+function getSelFuentes() { return [...document.querySelectorAll('.fuente-chk:checked')].map(c=>+c.value); }
+function getGran() { return document.getElementById('granSelect').value; }
+
+function formatPeriod(p, g) {
+  if (g === 'M') { const [y,m]=p.split('-'); return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m-1]+'-'+y.slice(2); }
+  if (g === 'W') { return p.replace('W0','S').replace('W','S'); } // 2026-W14 -> 2026-S14
+  return p.slice(5); // daily: MM-DD
+}
+
+function aggregate(gran, selIds) {
+  const filtered = RAW.filter(r => r.g === gran && selIds.includes(r.f));
+  const periods = [...new Set(filtered.map(r=>r.p))].sort();
+  return periods.map(p => {
+    const rows = filtered.filter(r=>r.p===p);
+    const out = { periodo: p };
+    NUM_FIELDS.forEach(k => { out[k] = rows.reduce((s,r)=>s+(r[k]||0),0); });
+    return out;
+  });
+}
+
+function onUpdate() {
+  const sel = getSelFuentes();
+  document.getElementById('chkAll').checked = sel.length === Object.keys(FUENTES).length;
+  if (!sel.length) {
+    document.getElementById('kpis').innerHTML='';
+    document.querySelector('#mainTable tbody').innerHTML='<tr><td colspan="22" style="text-align:center;padding:40px;color:#64748b">Selecciona al menos una fuente</td></tr>';
+    if(chartPct){chartPct.destroy();chartPct=null;} if(chartVars){chartVars.destroy();chartVars=null;}
+    return;
+  }
+  const g = getGran();
+  let rows = aggregate(g, sel);
+  // Take last SHOW_COUNT
+  rows = rows.slice(-SHOW_COUNT);
+  const label = sel.map(id=>FUENTES[id].name).join(', ');
+  const gLabel = g==='M'?'Mensual':g==='W'?'Semanal':'Diario';
+  document.getElementById('chartPctTitle').textContent = `% Incompletos — Vista ${gLabel}`;
+  render(rows, g, label);
+}
+
+function barCell(v, inc) {
+  if (inc>0) { const p=v/inc*100; const c=p>80?'high':p>40?'med':'low';
+    return `<td><div class="bar-cell"><span>${v.toLocaleString('es-CO')}</span><div class="bar-bg"><div class="bar-fill ${c}" style="width:${Math.min(p,100)}%"></div></div></div></td>`; }
+  return `<td>${v.toLocaleString('es-CO')}</td>`;
+}
+
+function render(rows, gran, filterLabel) {
+  const periods = rows.map(r=>r.periodo);
+  const last = rows[rows.length-1];
+  const prev = rows.length>1 ? rows[rows.length-2] : last;
+  const cs = periods.length+1;
+
+  const sC = [...COMP_VARS].sort((a,b)=>(last[b]||0)-(last[a]||0));
+  const sO = [...OTHER_VARS].sort((a,b)=>(last[b]||0)-(last[a]||0));
+  const pL = last.total>0?((last.incompletos/last.total)*100).toFixed(1):'0';
+  const pP = prev.total>0?((prev.incompletos/prev.total)*100).toFixed(1):'0';
+  const top = sC[0];
+  const pFmt = p => formatPeriod(p, gran);
+
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="label">Total ${pFmt(last.periodo)}</div><div class="value">${last.total.toLocaleString('es-CO')}</div><div class="sub">${filterLabel}</div></div>
+    <div class="kpi alert"><div class="label">Incompletos ${pFmt(last.periodo)}</div><div class="value">${last.incompletos.toLocaleString('es-CO')}</div><div class="sub">${pL}% del total</div></div>
+    <div class="kpi ${+pL>+pP?'alert':'ok'}"><div class="label">Variación vs ${pFmt(prev.periodo)}</div><div class="value">${(pL-pP)>0?'+':''}${(pL-pP).toFixed(1)}pp</div><div class="sub">${pP}% → ${pL}%</div></div>
+    <div class="kpi"><div class="label">Top variable faltante</div><div class="value" style="font-size:20px">${LABELS[top]}</div><div class="sub">${last[top]||0} de ${last.incompletos} inc.</div></div>
+  `;
+
+  // Table
+  document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>'+periods.map(p=>`<th>${pFmt(p)}</th>`).join('');
+  let tb = '';
+  tb += `<tr class="row-total"><td>${LABELS.total}</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).total.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
+  tb += `<tr class="row-incompletos"><td>${LABELS.incompletos}</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).incompletos.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
+  tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
+  tb += `<tr class="row-group-header"><td colspan="${cs}">Variables de completitud (definen estado incompleto en DMN)</td></tr>`;
+  sC.forEach(f=>{tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return barCell(r[f]||0,r.incompletos);}).join('')+'</tr>';});
+  tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
+  tb += `<tr class="row-group-header"><td colspan="${cs}">Otras variables (informativas, no afectan completitud)</td></tr>`;
+  sO.forEach(f=>{tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return barCell(r[f]||0,r.incompletos);}).join('')+'</tr>';});
+  document.querySelector('#mainTable tbody').innerHTML = tb;
+
+  // Chart: % line
+  const pctD = rows.map(r=>r.total>0?((r.incompletos/r.total)*100).toFixed(2):0);
+  if(chartPct)chartPct.destroy();
+  chartPct = new Chart(document.getElementById('chartPct'),{type:'line',data:{labels:periods.map(pFmt),datasets:[{label:'% Incompletos',data:pctD,borderColor:'#f87171',backgroundColor:'rgba(248,113,113,0.1)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#f87171'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%',color:'#94a3b8'},grid:{color:'#334155'}},x:{ticks:{color:'#94a3b8',maxRotation:45},grid:{color:'#334155'}}}}});
+
+  // Chart: bars
+  const vd = sC.map(f=>({label:LABELS[f],value:last[f]||0}));
+  if(chartVars)chartVars.destroy();
+  chartVars = new Chart(document.getElementById('chartVars'),{type:'bar',data:{labels:vd.map(d=>d.label),datasets:[{data:vd.map(d=>d.value),backgroundColor:vd.map(d=>{const p=last.incompletos>0?d.value/last.incompletos*100:0;return p>80?'#f87171':p>40?'#fbbf24':'#34d399';}),borderRadius:4}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#334155'}},y:{ticks:{color:'#cbd5e1',font:{size:12}},grid:{display:false}}}}});
+}
+
+// Load data
+function loadData(data) {
+  RAW = data.map(r => {
+    const out = { g: r.g, f: r.f, p: r.p };
+    Object.entries(FMAP).forEach(([k,v]) => { out[v] = r[k] || 0; });
+    return out;
+  });
+  document.getElementById('lastUpdate').textContent = `Datos al ${new Date().toLocaleString('es-CO')}`;
+  onUpdate();
+}
+
+// Try loading external JSON, fallback to fetch from same directory
+fetch('data.json').then(r=>r.json()).then(loadData).catch(()=>{
+  // Inline fallback for minimal data if file not found
+  document.querySelector('#mainTable tbody').innerHTML='<tr><td colspan="2" style="padding:40px;color:#f87171;text-align:center">No se encontró data.json. Coloca el archivo en la misma carpeta que este HTML.</td></tr>';
+});
+</script>
+</body>
+</html>
