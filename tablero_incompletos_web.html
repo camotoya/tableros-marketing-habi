@@ -174,11 +174,11 @@ function onUpdate() {
   render(rows, g, label);
 }
 
-function coloredCell(v, maxVal) {
-  if (maxVal <= 0) return `<td>${v.toLocaleString('es-CO')}</td>`;
-  const ratio = v / maxVal;
-  const color = ratio > 0.8 ? '#f87171' : ratio > 0.5 ? '#fbbf24' : '#34d399';
-  return `<td style="color:${color}">${v.toLocaleString('es-CO')}</td>`;
+function varCell(v, total) {
+  const pct = total > 0 ? (v / total * 100) : 0;
+  const color = pct > 5 ? '#f87171' : pct > 2 ? '#fbbf24' : '#34d399';
+  const pctStr = pct >= 10 ? pct.toFixed(0) : pct.toFixed(1);
+  return `<td style="color:${color}">${v.toLocaleString('es-CO')} <span style="opacity:0.6;font-size:11px">(${pctStr}%)</span></td>`;
 }
 
 function render(rows, gran, filterLabel) {
@@ -211,10 +211,10 @@ function render(rows, gran, filterLabel) {
   tb += `<tr class="row-pct-real"><td>% Incompletos Totales</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.total>0?((r.inc_real_60m/r.total)*100).toFixed(2):'0.00';return `<td>${pct}%</td>`;}).join('')+'</tr>';
   tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
   tb += `<tr class="row-group-header"><td colspan="${cs}">Variables de completitud (definen estado incompleto en DMN)</td></tr>`;
-  sC.forEach(f=>{const vals=rows.map(r=>r[f]||0);const mx=Math.max(...vals);tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return coloredCell(r[f]||0,mx);}).join('')+'</tr>';});
+  sC.forEach(f=>{tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return varCell(r[f]||0,r.total);}).join('')+'</tr>';});
   tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
   tb += `<tr class="row-group-header"><td colspan="${cs}">Otras variables (informativas, no afectan completitud)</td></tr>`;
-  sO.forEach(f=>{const vals=rows.map(r=>r[f]||0);const mx=Math.max(...vals);tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return coloredCell(r[f]||0,mx);}).join('')+'</tr>';});
+  sO.forEach(f=>{tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return varCell(r[f]||0,r.total);}).join('')+'</tr>';});
   document.querySelector('#mainTable tbody').innerHTML = tb;
 
   // Chart: % lines + bars for absolute count on right axis
