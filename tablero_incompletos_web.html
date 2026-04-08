@@ -236,15 +236,14 @@ function render(rows, gran, filterLabel) {
   sO.forEach(f=>{const pcts=rows.map(r=>r.total>0?(r[f]||0)/r.total*100:0);const mx=Math.max(...pcts);tb+=`<tr><td>${LABELS[f]}</td>`+periods.map((p,idx)=>{const r=rows.find(x=>x.periodo===p);return varCell(r[f]||0,r.total,mx);}).join('')+'</tr>';});
   tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
 
-  // Recuperados
-  tb += `<tr class="row-recovered"><td>Recuperados (salieron de incompleto)</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).recuperados.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
-  tb += `<tr class="row-pct-rec"><td>% Recuperación</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.inc_real_60m>0?((r.recuperados/r.inc_real_60m)*100).toFixed(1):'0.0';return `<td>${pct}%</td>`;}).join('')+'</tr>';
-  tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
-
-  // Agentes — sorted by total recovered desc
+  // Agentes y recuperados
   const agentTotals = AGENT_FIELDS.map(af=>({...af, total:rows.reduce((s,r)=>s+(r[af.key]||0),0)})).filter(a=>a.total>0).sort((a,b)=>b.total-a.total);
   if (agentTotals.length > 0) {
     tb += `<tr class="row-group-header"><td colspan="${cs}">Agentes que recuperaron leads (salieron de incompleto >60min)</td></tr>`;
+  }
+  tb += `<tr class="row-recovered"><td>Recuperados (salieron de incompleto)</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).recuperados.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
+  tb += `<tr class="row-pct-rec"><td>% Recuperación</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.inc_real_60m>0?((r.recuperados/r.inc_real_60m)*100).toFixed(1):'0.0';return `<td>${pct}%</td>`;}).join('')+'</tr>';
+  if (agentTotals.length > 0) {
     agentTotals.forEach(af => {
       const pcts = rows.map(r => r.recuperados > 0 ? (r[af.key]||0)/r.recuperados*100 : 0);
       const mx = Math.max(...pcts);
