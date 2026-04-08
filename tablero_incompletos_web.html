@@ -103,6 +103,10 @@
   <div class="chart-card"><h3 id="chartPctTitle">% Incompletos por período</h3><canvas id="chartPct"></canvas></div>
   <div class="chart-card"><h3>Variables faltantes en Incompletos (último período completo)</h3><canvas id="chartVars"></canvas></div>
 </div>
+<div class="chart-section">
+  <div class="chart-card"><h3>Tipo de inmueble (todos los leads)</h3><canvas id="chartTipo"></canvas></div>
+  <div class="chart-card"><h3>Tipo de inmueble (incompletos actuales)</h3><canvas id="chartTipoInc"></canvas></div>
+</div>
 <div class="table-container">
   <table id="mainTable"><thead><tr><th>Métrica</th></tr></thead><tbody></tbody></table>
 </div>
@@ -124,7 +128,7 @@ const LABELS = {
 const COMP_VARS = ['sin_garajes','sin_banos','sin_habitaciones','sin_area','sin_antiguedad'];
 const OTHER_VARS = ['sin_ascensor','sin_lote_id','sin_direccion','sin_tipo_inmueble_id'];
 // Field mapping from compact BQ keys to readable keys
-const FMAP = {t:'total',i:'incompletos',ir:'inc_real_60m',rec:'recuperados',a:'sin_area',b:'sin_banos',h:'sin_habitaciones',n:'sin_antiguedad',ti:'sin_tipo_inmueble_id',l:'sin_lote_id',d:'sin_direccion',ga:'sin_garajes',ac:'sin_ascensor',ag_nexus:'ag_nexus',ag_mabi:'ag_mabi',ag_wha:'ag_wha',ag_dup:'ag_dup',ag_pricing:'ag_pricing',ag_dock:'ag_dock',ag_habi:'ag_habi',ag_otros:'ag_otros'};
+const FMAP = {t:'total',i:'incompletos',ir:'inc_real_60m',rec:'recuperados',a:'sin_area',b:'sin_banos',h:'sin_habitaciones',n:'sin_antiguedad',ti:'sin_tipo_inmueble_id',l:'sin_lote_id',d:'sin_direccion',ga:'sin_garajes',ac:'sin_ascensor',ag_nexus:'ag_nexus',ag_mabi:'ag_mabi',ag_wha:'ag_wha',ag_dup:'ag_dup',ag_pricing:'ag_pricing',ag_dock:'ag_dock',ag_habi:'ag_habi',ag_otros:'ag_otros',tp1:'tipo_apto',tp2:'tipo_casa',tpn:'tipo_null',ip1:'inc_tipo_apto',ip2:'inc_tipo_casa',ipn:'inc_tipo_null'};
 const NUM_FIELDS = Object.values(FMAP);
 const AGENT_FIELDS = [
   {key:'ag_nexus',label:'Nexus (callcenter)'},
@@ -138,7 +142,7 @@ const AGENT_FIELDS = [
 ];
 const SHOW_COUNT = 20;
 
-let chartPct, chartVars, RAW = [];
+let chartPct, chartVars, chartTipo, chartTipoInc, RAW = [];
 
 // Build checkboxes
 const fb = document.getElementById('filterBar');
@@ -175,7 +179,7 @@ function onUpdate() {
   if (!sel.length) {
     document.getElementById('kpis').innerHTML='';
     document.querySelector('#mainTable tbody').innerHTML='<tr><td colspan="22" style="text-align:center;padding:40px;color:#64748b">Selecciona al menos una fuente</td></tr>';
-    if(chartPct){chartPct.destroy();chartPct=null;} if(chartVars){chartVars.destroy();chartVars=null;}
+    if(chartPct){chartPct.destroy();chartPct=null;} if(chartVars){chartVars.destroy();chartVars=null;} if(chartTipo){chartTipo.destroy();chartTipo=null;} if(chartTipoInc){chartTipoInc.destroy();chartTipoInc=null;}
     return;
   }
   const g = getGran();
@@ -270,6 +274,33 @@ function render(rows, gran, filterLabel) {
   const vd = sC.map(f=>({label:LABELS[f],value:last[f]||0}));
   if(chartVars)chartVars.destroy();
   chartVars = new Chart(document.getElementById('chartVars'),{type:'bar',data:{labels:vd.map(d=>d.label),datasets:[{data:vd.map(d=>d.value),backgroundColor:vd.map(d=>{const p=last.incompletos>0?d.value/last.incompletos*100:0;return p>80?'#f87171':p>40?'#fbbf24':'#34d399';}),borderRadius:4}]},options:{indexAxis:'y',responsive:true,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8'},grid:{color:'#334155'}},y:{ticks:{color:'#cbd5e1',font:{size:12}},grid:{display:false}}}}});
+
+  // Pie charts: Tipo de inmueble
+  const tipoTotals = {apto:0, casa:0, sin:0, aptoI:0, casaI:0, sinI:0};
+  rows.forEach(r => {
+    tipoTotals.apto += r.tipo_apto||0;
+    tipoTotals.casa += r.tipo_casa||0;
+    tipoTotals.sin += r.tipo_null||0;
+    // Para incompletos: proporción basada en total (no tenemos split por tipo en incompletos directamente)
+    // Usamos la distribución general como proxy
+  });
+  const tipoLabels = ['Apartamento','Casa','Sin tipo'];
+  const tipoColors = ['#818cf8','#34d399','#64748b'];
+  const tipoData = [tipoTotals.apto, tipoTotals.casa, tipoTotals.sin];
+
+  if(chartTipo)chartTipo.destroy();
+  chartTipo = new Chart(document.getElementById('chartTipo'),{type:'doughnut',data:{labels:tipoLabels,datasets:[{data:tipoData,backgroundColor:tipoColors,borderColor:'#1e293b',borderWidth:2}]},options:{responsive:true,plugins:{legend:{display:true,position:'bottom',labels:{color:'#94a3b8',padding:12,usePointStyle:true}},tooltip:{callbacks:{label:function(ctx){const t=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=t>0?((ctx.parsed/t)*100).toFixed(1):'0';return ctx.label+': '+ctx.parsed.toLocaleString('es-CO')+' ('+pct+'%)';}}}}}});
+
+  // Pie incompletos: cruce exacto tipo×incompleto desde la query
+  const tipoIncTotals = {apto:0, casa:0, sin:0};
+  rows.forEach(r => {
+    tipoIncTotals.apto += r.inc_tipo_apto||0;
+    tipoIncTotals.casa += r.inc_tipo_casa||0;
+    tipoIncTotals.sin += r.inc_tipo_null||0;
+  });
+  const tipoIncData = [tipoIncTotals.apto, tipoIncTotals.casa, tipoIncTotals.sin];
+  if(chartTipoInc)chartTipoInc.destroy();
+  chartTipoInc = new Chart(document.getElementById('chartTipoInc'),{type:'doughnut',data:{labels:tipoLabels,datasets:[{data:tipoIncData,backgroundColor:tipoColors,borderColor:'#1e293b',borderWidth:2}]},options:{responsive:true,plugins:{legend:{display:true,position:'bottom',labels:{color:'#94a3b8',padding:12,usePointStyle:true}},tooltip:{callbacks:{label:function(ctx){const t=ctx.dataset.data.reduce((a,b)=>a+b,0);const pct=t>0?((ctx.parsed/t)*100).toFixed(1):'0';return ctx.label+': '+ctx.parsed.toLocaleString('es-CO')+' ('+pct+'%)';}}}}}});
 }
 
 // Load data

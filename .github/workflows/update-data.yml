@@ -37,7 +37,8 @@ jobs:
               IF(tiv.num_habitaciones IS NULL OR tiv.num_habitaciones = 0,1,0) AS fh, IF(tiv.anos_antiguedad IS NULL,1,0) AS fn,
               IF(tiv.tipo_inmueble_id IS NULL,1,0) AS ft, IF(tl.lote_id IS NULL,1,0) AS fl,
               IF(tl.direccion IS NULL OR tl.direccion = '',1,0) AS fd, IF(tiv.garajes IS NULL,1,0) AS fg,
-              IF(tiv.num_ascensores IS NULL,1,0) AS fc
+              IF(tiv.num_ascensores IS NULL,1,0) AS fc,
+              tiv.tipo_inmueble_id AS tid
             FROM \`papyrus-data.habi_db.tabla_negocio_inmueble\` tni
             LEFT JOIN \`papyrus-data.habi_db.tabla_inmueble_v2\` tiv ON tiv.id = tni.inmueble_id
             LEFT JOIN \`papyrus-data.habi_db.tabla_localizacion_inmueble_v2\` tl ON tiv.localizacion_new_id = tl.id
@@ -105,7 +106,9 @@ jobs:
               COUNTIF(is_rec=1 AND agente_grupo='Pricing masivo') ag_pricing,
               COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
               COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
-              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros
+              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros,
+              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid IS NULL) tpn,
+              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid IS NULL) ipn
             FROM enriched GROUP BY f,p
           ),
           week_periods AS (
@@ -159,7 +162,7 @@ jobs:
           with open('/tmp/bq_raw.json') as f:
               data = json.load(f)
           for r in data:
-              for k in ['f','t','i','ir','rec','a','b','h','n','ti','l','d','ga','ac','ag_nexus','ag_mabi','ag_wha','ag_dup','ag_pricing','ag_dock','ag_habi','ag_otros']:
+              for k in ['f','t','i','ir','rec','a','b','h','n','ti','l','d','ga','ac','ag_nexus','ag_mabi','ag_wha','ag_dup','ag_pricing','ag_dock','ag_habi','ag_otros','tp1','tp2','tpn','ip1','ip2','ipn']:
                   r[k] = int(r[k])
           with open('data.json','w') as f:
               json.dump(data, f, separators=(',',':'))
