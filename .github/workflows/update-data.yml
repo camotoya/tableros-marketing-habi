@@ -107,8 +107,8 @@ jobs:
               COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
               COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
               COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros,
-              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid IS NULL) tpn,
-              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid IS NULL) ipn
+              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid=3) tp3, COUNTIF(tid=4) tp4, COUNTIF(tid=5) tp5, COUNTIF(tid NOT IN (1,2,3,4,5) AND tid IS NOT NULL) tpo, COUNTIF(tid IS NULL) tpn,
+              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid=3) ip3, COUNTIF(ei=1 AND tid=4) ip4, COUNTIF(ei=1 AND tid=5) ip5, COUNTIF(ei=1 AND tid NOT IN (1,2,3,4,5) AND tid IS NOT NULL) ipo, COUNTIF(ei=1 AND tid IS NULL) ipn
             FROM enriched GROUP BY f,p
           ),
           week_periods AS (
@@ -130,8 +130,8 @@ jobs:
               COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
               COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
               COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros,
-              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid IS NULL) tpn,
-              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid IS NULL) ipn
+              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid=3) tp3, COUNTIF(tid=4) tp4, COUNTIF(tid=5) tp5, COUNTIF(tid NOT IN (1,2,3,4,5) AND tid IS NOT NULL) tpo, COUNTIF(tid IS NULL) tpn,
+              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid=3) ip3, COUNTIF(ei=1 AND tid=4) ip4, COUNTIF(ei=1 AND tid=5) ip5, COUNTIF(ei=1 AND tid NOT IN (1,2,3,4,5) AND tid IS NOT NULL) ipo, COUNTIF(ei=1 AND tid IS NULL) ipn
             FROM enriched WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT ws FROM week_periods) GROUP BY f,p
           ),
           day_periods AS (
@@ -151,8 +151,8 @@ jobs:
               COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
               COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
               COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros,
-              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid IS NULL) tpn,
-              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid IS NULL) ipn
+              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid=3) tp3, COUNTIF(tid=4) tp4, COUNTIF(tid=5) tp5, COUNTIF(tid NOT IN (1,2,3,4,5) AND tid IS NOT NULL) tpo, COUNTIF(tid IS NULL) tpn,
+              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid=3) ip3, COUNTIF(ei=1 AND tid=4) ip4, COUNTIF(ei=1 AND tid=5) ip5, COUNTIF(ei=1 AND tid NOT IN (1,2,3,4,5) AND tid IS NOT NULL) ipo, COUNTIF(ei=1 AND tid IS NULL) ipn
             FROM enriched WHERE fecha IN (SELECT fecha FROM day_periods) GROUP BY f,p
           )
           SELECT * FROM monthly UNION ALL SELECT * FROM weekly UNION ALL SELECT * FROM daily
@@ -166,7 +166,7 @@ jobs:
           with open('/tmp/bq_raw.json') as f:
               data = json.load(f)
           for r in data:
-              for k in ['f','t','i','ir','rec','a','b','h','n','ti','l','d','ga','ac','ag_nexus','ag_mabi','ag_wha','ag_dup','ag_pricing','ag_dock','ag_habi','ag_otros','tp1','tp2','tpn','ip1','ip2','ipn']:
+              for k in ['f','t','i','ir','rec','a','b','h','n','ti','l','d','ga','ac','ag_nexus','ag_mabi','ag_wha','ag_dup','ag_pricing','ag_dock','ag_habi','ag_otros','tp1','tp2','tp3','tp4','tp5','tpo','tpn','ip1','ip2','ip3','ip4','ip5','ipo','ipn']:
                   r[k] = int(r[k])
           with open('data.json','w') as f:
               json.dump(data, f, separators=(',',':'))
