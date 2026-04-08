@@ -30,7 +30,8 @@ jobs:
           bq query --use_legacy_sql=false --format=json --max_rows=10000 "
           WITH base AS (
             SELECT
-              tni.nid, tiv.fuente_id, DATE(tni.fecha_creacion) AS fecha,
+              tni.id AS negocio_id, tiv.fuente_id, DATE(tni.fecha_creacion) AS fecha,
+              tni.fecha_creacion AS fecha_ts, tni.last_estado_id,
               CASE WHEN tni.last_estado_id IN (7,39) THEN 1 ELSE 0 END AS ei,
               IF(tiv.area IS NULL OR tiv.area = 0,1,0) AS fa, IF(tiv.banos IS NULL OR tiv.banos = 0,1,0) AS fb,
               IF(tiv.num_habitaciones IS NULL OR tiv.num_habitaciones = 0,1,0) AS fh, IF(tiv.anos_antiguedad IS NULL,1,0) AS fn,
@@ -42,44 +43,56 @@ jobs:
             LEFT JOIN \`papyrus-data.habi_db.tabla_localizacion_inmueble_v2\` tl ON tiv.localizacion_new_id = tl.id
             WHERE DATE(tni.fecha_creacion) >= '2024-01-01' AND tiv.fuente_id IN (3,7,20,35,39,47)
           ),
+          inc_hist AS (
+            SELECT DISTINCT h.negocio_id
+            FROM \`sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2\` h
+            INNER JOIN base b ON b.negocio_id = h.negocio_id
+            WHERE h.estado_id IN (7, 39)
+              AND DATETIME_DIFF(h.fecha_actualizacion, b.fecha_ts, MINUTE) >= 60
+          ),
+          inc_actual_60 AS (
+            SELECT negocio_id FROM base
+            WHERE last_estado_id IN (7, 39)
+              AND DATETIME_DIFF(CURRENT_DATETIME(), fecha_ts, MINUTE) >= 60
+          ),
+          inc_real AS (
+            SELECT negocio_id FROM inc_hist UNION DISTINCT SELECT negocio_id FROM inc_actual_60
+          ),
+          enriched AS (
+            SELECT b.*, IF(ir.negocio_id IS NOT NULL, 1, 0) AS is_ir
+            FROM base b LEFT JOIN inc_real ir ON ir.negocio_id = b.negocio_id
+          ),
           monthly AS (
             SELECT 'M' AS g, fuente_id AS f, FORMAT_DATE('%Y-%m',fecha) AS p,
-              COUNT(*) t, COUNTIF(ei=1) i,
+              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir,
               COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
               COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
               COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
-            FROM base GROUP BY f,p
+            FROM enriched GROUP BY f,p
           ),
           week_periods AS (
-            SELECT DISTINCT DATE_TRUNC(fecha, ISOWEEK) AS ws FROM base
+            SELECT DISTINCT DATE_TRUNC(fecha, ISOWEEK) AS ws FROM enriched
             WHERE DATE_TRUNC(fecha, ISOWEEK) < DATE_TRUNC(CURRENT_DATE(), ISOWEEK)
             ORDER BY ws DESC LIMIT 25
           ),
           weekly AS (
-            SELECT 'W' AS g, fuente_id AS f,
-              FORMAT_DATE('%Y-W%V', DATE_TRUNC(fecha, ISOWEEK)) AS p,
-              COUNT(*) t, COUNTIF(ei=1) i,
+            SELECT 'W' AS g, fuente_id AS f, FORMAT_DATE('%Y-W%V', DATE_TRUNC(fecha, ISOWEEK)) AS p,
+              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir,
               COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
               COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
               COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
-            FROM base
-            WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT ws FROM week_periods)
-            GROUP BY f,p
+            FROM enriched WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT ws FROM week_periods) GROUP BY f,p
           ),
           day_periods AS (
-            SELECT DISTINCT fecha FROM base
-            WHERE fecha < CURRENT_DATE()
-            ORDER BY fecha DESC LIMIT 25
+            SELECT DISTINCT fecha FROM enriched WHERE fecha < CURRENT_DATE() ORDER BY fecha DESC LIMIT 25
           ),
           daily AS (
             SELECT 'D' AS g, fuente_id AS f, CAST(fecha AS STRING) AS p,
-              COUNT(*) t, COUNTIF(ei=1) i,
+              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir,
               COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
               COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
               COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
-            FROM base
-            WHERE fecha IN (SELECT fecha FROM day_periods)
-            GROUP BY f,p
+            FROM enriched WHERE fecha IN (SELECT fecha FROM day_periods) GROUP BY f,p
           )
           SELECT * FROM monthly UNION ALL SELECT * FROM weekly UNION ALL SELECT * FROM daily
           ORDER BY g,f,p
@@ -92,7 +105,7 @@ jobs:
           with open('/tmp/bq_raw.json') as f:
               data = json.load(f)
           for r in data:
-              for k in ['f','t','i','a','b','h','n','ti','l','d','ga','ac']:
+              for k in ['f','t','i','ir','a','b','h','n','ti','l','d','ga','ac']:
                   r[k] = int(r[k])
           with open('data.json','w') as f:
               json.dump(data, f, separators=(',',':'))
