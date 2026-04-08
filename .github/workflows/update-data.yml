@@ -129,7 +129,9 @@ jobs:
               COUNTIF(is_rec=1 AND agente_grupo='Pricing masivo') ag_pricing,
               COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
               COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
-              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros
+              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros,
+              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid IS NULL) tpn,
+              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid IS NULL) ipn
             FROM enriched WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT ws FROM week_periods) GROUP BY f,p
           ),
           day_periods AS (
@@ -148,7 +150,9 @@ jobs:
               COUNTIF(is_rec=1 AND agente_grupo='Pricing masivo') ag_pricing,
               COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
               COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
-              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros
+              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros,
+              COUNTIF(tid=1) tp1, COUNTIF(tid=2) tp2, COUNTIF(tid IS NULL) tpn,
+              COUNTIF(ei=1 AND tid=1) ip1, COUNTIF(ei=1 AND tid=2) ip2, COUNTIF(ei=1 AND tid IS NULL) ipn
             FROM enriched WHERE fecha IN (SELECT fecha FROM day_periods) GROUP BY f,p
           )
           SELECT * FROM monthly UNION ALL SELECT * FROM weekly UNION ALL SELECT * FROM daily
