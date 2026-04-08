@@ -47,40 +47,86 @@ jobs:
             SELECT DISTINCT h.negocio_id
             FROM \`sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2\` h
             INNER JOIN base b ON b.negocio_id = h.negocio_id
-            WHERE h.estado_id IN (7, 39)
-              AND DATETIME_DIFF(h.fecha_actualizacion, b.fecha_ts, MINUTE) >= 60
+            WHERE h.estado_id IN (7,39) AND DATETIME_DIFF(h.fecha_actualizacion, b.fecha_ts, MINUTE) >= 60
           ),
           inc_actual_60 AS (
             SELECT negocio_id FROM base
-            WHERE last_estado_id IN (7, 39)
-              AND DATETIME_DIFF(CURRENT_DATETIME(), fecha_ts, MINUTE) >= 60
+            WHERE last_estado_id IN (7,39) AND DATETIME_DIFF(CURRENT_DATETIME(), fecha_ts, MINUTE) >= 60
           ),
           inc_real AS (
             SELECT negocio_id FROM inc_hist UNION DISTINCT SELECT negocio_id FROM inc_actual_60
           ),
+          recovered_ids AS (
+            SELECT ir.negocio_id FROM inc_real ir
+            INNER JOIN base b ON b.negocio_id = ir.negocio_id
+            WHERE b.last_estado_id NOT IN (7,39)
+          ),
+          last_exit AS (
+            SELECT h.negocio_id, h.agente,
+              ROW_NUMBER() OVER (PARTITION BY h.negocio_id ORDER BY h.fecha_actualizacion DESC) rn
+            FROM \`sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2\` h
+            INNER JOIN recovered_ids r ON r.negocio_id = h.negocio_id
+            WHERE h.estado_id NOT IN (7,39)
+          ),
+          agent_map AS (
+            SELECT negocio_id,
+              CASE
+                WHEN agente LIKE 'nexus:%' THEN 'Nexus'
+                WHEN agente = 'MabiCO' THEN 'MabiCO'
+                WHEN agente = 'wha_bot' THEN 'WhatsApp Bot'
+                WHEN agente = 'duplicate-backbone' THEN 'Dup-backbone'
+                WHEN agente = 'pricing_massive@habi.co' THEN 'Pricing masivo'
+                WHEN agente = 'docking-backbone' THEN 'Docking-backbone'
+                WHEN agente LIKE '%@habi.co' THEN 'Agentes Habi (otros)'
+                ELSE 'Otros'
+              END AS agente_grupo
+            FROM last_exit WHERE rn = 1
+          ),
           enriched AS (
-            SELECT b.*, IF(ir.negocio_id IS NOT NULL, 1, 0) AS is_ir
-            FROM base b LEFT JOIN inc_real ir ON ir.negocio_id = b.negocio_id
+            SELECT b.*,
+              IF(ir.negocio_id IS NOT NULL, 1, 0) AS is_ir,
+              IF(rec.negocio_id IS NOT NULL, 1, 0) AS is_rec,
+              am.agente_grupo
+            FROM base b
+            LEFT JOIN inc_real ir ON ir.negocio_id = b.negocio_id
+            LEFT JOIN recovered_ids rec ON rec.negocio_id = b.negocio_id
+            LEFT JOIN agent_map am ON am.negocio_id = b.negocio_id
           ),
           monthly AS (
             SELECT 'M' AS g, fuente_id AS f, FORMAT_DATE('%Y-%m',fecha) AS p,
-              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir,
+              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir, COUNTIF(is_rec=1) rec,
               COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
               COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
-              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
+              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac,
+              COUNTIF(is_rec=1 AND agente_grupo='Nexus') ag_nexus,
+              COUNTIF(is_rec=1 AND agente_grupo='MabiCO') ag_mabi,
+              COUNTIF(is_rec=1 AND agente_grupo='WhatsApp Bot') ag_wha,
+              COUNTIF(is_rec=1 AND agente_grupo='Dup-backbone') ag_dup,
+              COUNTIF(is_rec=1 AND agente_grupo='Pricing masivo') ag_pricing,
+              COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
+              COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
+              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros
             FROM enriched GROUP BY f,p
           ),
           week_periods AS (
-            SELECT DISTINCT DATE_TRUNC(fecha, ISOWEEK) AS ws FROM enriched
+            SELECT DISTINCT DATE_TRUNC(fecha, ISOWEEK) ws FROM enriched
             WHERE DATE_TRUNC(fecha, ISOWEEK) < DATE_TRUNC(CURRENT_DATE(), ISOWEEK)
             ORDER BY ws DESC LIMIT 25
           ),
           weekly AS (
             SELECT 'W' AS g, fuente_id AS f, FORMAT_DATE('%Y-W%V', DATE_TRUNC(fecha, ISOWEEK)) AS p,
-              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir,
+              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir, COUNTIF(is_rec=1) rec,
               COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
               COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
-              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
+              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac,
+              COUNTIF(is_rec=1 AND agente_grupo='Nexus') ag_nexus,
+              COUNTIF(is_rec=1 AND agente_grupo='MabiCO') ag_mabi,
+              COUNTIF(is_rec=1 AND agente_grupo='WhatsApp Bot') ag_wha,
+              COUNTIF(is_rec=1 AND agente_grupo='Dup-backbone') ag_dup,
+              COUNTIF(is_rec=1 AND agente_grupo='Pricing masivo') ag_pricing,
+              COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
+              COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
+              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros
             FROM enriched WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT ws FROM week_periods) GROUP BY f,p
           ),
           day_periods AS (
@@ -88,10 +134,18 @@ jobs:
           ),
           daily AS (
             SELECT 'D' AS g, fuente_id AS f, CAST(fecha AS STRING) AS p,
-              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir,
+              COUNT(*) t, COUNTIF(ei=1) i, COUNTIF(is_ir=1) ir, COUNTIF(is_rec=1) rec,
               COUNTIF(ei=1 AND fa=1) a, COUNTIF(ei=1 AND fb=1) b, COUNTIF(ei=1 AND fh=1) h,
               COUNTIF(ei=1 AND fn=1) n, COUNTIF(ei=1 AND ft=1) ti, COUNTIF(ei=1 AND fl=1) l,
-              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac
+              COUNTIF(ei=1 AND fd=1) d, COUNTIF(ei=1 AND fg=1) ga, COUNTIF(ei=1 AND fc=1) ac,
+              COUNTIF(is_rec=1 AND agente_grupo='Nexus') ag_nexus,
+              COUNTIF(is_rec=1 AND agente_grupo='MabiCO') ag_mabi,
+              COUNTIF(is_rec=1 AND agente_grupo='WhatsApp Bot') ag_wha,
+              COUNTIF(is_rec=1 AND agente_grupo='Dup-backbone') ag_dup,
+              COUNTIF(is_rec=1 AND agente_grupo='Pricing masivo') ag_pricing,
+              COUNTIF(is_rec=1 AND agente_grupo='Docking-backbone') ag_dock,
+              COUNTIF(is_rec=1 AND agente_grupo='Agentes Habi (otros)') ag_habi,
+              COUNTIF(is_rec=1 AND agente_grupo='Otros') ag_otros
             FROM enriched WHERE fecha IN (SELECT fecha FROM day_periods) GROUP BY f,p
           )
           SELECT * FROM monthly UNION ALL SELECT * FROM weekly UNION ALL SELECT * FROM daily
@@ -105,7 +159,7 @@ jobs:
           with open('/tmp/bq_raw.json') as f:
               data = json.load(f)
           for r in data:
-              for k in ['f','t','i','ir','a','b','h','n','ti','l','d','ga','ac']:
+              for k in ['f','t','i','ir','rec','a','b','h','n','ti','l','d','ga','ac','ag_nexus','ag_mabi','ag_wha','ag_dup','ag_pricing','ag_dock','ag_habi','ag_otros']:
                   r[k] = int(r[k])
           with open('data.json','w') as f:
               json.dump(data, f, separators=(',',':'))
