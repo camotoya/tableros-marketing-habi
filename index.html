@@ -50,6 +50,10 @@
   tbody tr.row-incompletos td:first-child { background: #271a2e; }
   tbody tr.row-pct td { font-weight: 600; color: #fbbf24; font-size: 13px; background: #27231a; }
   tbody tr.row-pct td:first-child { background: #27231a; }
+  tbody tr.row-inc-real td { font-weight: 600; color: #38bdf8; font-size: 13px; background: #1a2433; }
+  tbody tr.row-inc-real td:first-child { background: #1a2433; }
+  tbody tr.row-pct-real td { font-weight: 600; color: #38bdf8; font-size: 13px; background: #1a2433; }
+  tbody tr.row-pct-real td:first-child { background: #1a2433; }
   tbody tr.row-separator td { padding: 0; height: 3px; background: #0f172a; border: none; }
   tbody tr.row-separator td:first-child { background: #0f172a; border-right-color: #0f172a; }
   tbody tr.row-group-header td { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #818cf8; padding: 8px 14px; background: #172033; border: none; }
@@ -116,7 +120,7 @@ const LABELS = {
 const COMP_VARS = ['sin_garajes','sin_banos','sin_habitaciones','sin_area','sin_antiguedad'];
 const OTHER_VARS = ['sin_ascensor','sin_lote_id','sin_direccion','sin_tipo_inmueble_id'];
 // Field mapping from compact BQ keys to readable keys
-const FMAP = {t:'total',i:'incompletos',a:'sin_area',b:'sin_banos',h:'sin_habitaciones',n:'sin_antiguedad',ti:'sin_tipo_inmueble_id',l:'sin_lote_id',d:'sin_direccion',ga:'sin_garajes',ac:'sin_ascensor'};
+const FMAP = {t:'total',i:'incompletos',ir:'inc_real_60m',a:'sin_area',b:'sin_banos',h:'sin_habitaciones',n:'sin_antiguedad',ti:'sin_tipo_inmueble_id',l:'sin_lote_id',d:'sin_direccion',ga:'sin_garajes',ac:'sin_ascensor'};
 const NUM_FIELDS = Object.values(FMAP);
 const SHOW_COUNT = 20;
 
@@ -201,7 +205,9 @@ function render(rows, gran, filterLabel) {
   let tb = '';
   tb += `<tr class="row-total"><td>${LABELS.total}</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).total.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
   tb += `<tr class="row-incompletos"><td>${LABELS.incompletos}</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).incompletos.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
-  tb += `<tr class="row-pct"><td>% Incompletos</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.total>0?((r.incompletos/r.total)*100).toFixed(1):'0.0';return `<td>${pct}%</td>`;}).join('')+'</tr>';
+  tb += `<tr class="row-pct"><td>% Incompletos (estado actual)</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.total>0?((r.incompletos/r.total)*100).toFixed(1):'0.0';return `<td>${pct}%</td>`;}).join('')+'</tr>';
+  tb += `<tr class="row-inc-real"><td>Inc. reales (>60min tras creación)</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).inc_real_60m.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
+  tb += `<tr class="row-pct-real"><td>% Inc. reales</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.total>0?((r.inc_real_60m/r.total)*100).toFixed(2):'0.00';return `<td>${pct}%</td>`;}).join('')+'</tr>';
   tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
   tb += `<tr class="row-group-header"><td colspan="${cs}">Variables de completitud (definen estado incompleto en DMN)</td></tr>`;
   sC.forEach(f=>{tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return barCell(r[f]||0,r.incompletos);}).join('')+'</tr>';});
@@ -210,10 +216,14 @@ function render(rows, gran, filterLabel) {
   sO.forEach(f=>{tb+=`<tr><td>${LABELS[f]}</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);return barCell(r[f]||0,r.incompletos);}).join('')+'</tr>';});
   document.querySelector('#mainTable tbody').innerHTML = tb;
 
-  // Chart: % line
+  // Chart: % line (two series)
   const pctD = rows.map(r=>r.total>0?((r.incompletos/r.total)*100).toFixed(2):0);
+  const pctR = rows.map(r=>r.total>0?((r.inc_real_60m/r.total)*100).toFixed(2):0);
   if(chartPct)chartPct.destroy();
-  chartPct = new Chart(document.getElementById('chartPct'),{type:'line',data:{labels:periods.map(pFmt),datasets:[{label:'% Incompletos',data:pctD,borderColor:'#f87171',backgroundColor:'rgba(248,113,113,0.1)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#f87171'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%',color:'#94a3b8'},grid:{color:'#334155'}},x:{ticks:{color:'#94a3b8',maxRotation:45},grid:{color:'#334155'}}}}});
+  chartPct = new Chart(document.getElementById('chartPct'),{type:'line',data:{labels:periods.map(pFmt),datasets:[
+    {label:'% Inc. estado actual',data:pctD,borderColor:'#f87171',backgroundColor:'rgba(248,113,113,0.08)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#f87171',borderWidth:2},
+    {label:'% Inc. reales (>60min)',data:pctR,borderColor:'#38bdf8',backgroundColor:'rgba(56,189,248,0.08)',fill:true,tension:0.3,pointRadius:3,pointBackgroundColor:'#38bdf8',borderWidth:2,borderDash:[5,3]}
+  ]},options:{responsive:true,plugins:{legend:{display:true,labels:{color:'#94a3b8',usePointStyle:true,pointStyle:'line',padding:16}}},scales:{y:{ticks:{callback:v=>v+'%',color:'#94a3b8'},grid:{color:'#334155'}},x:{ticks:{color:'#94a3b8',maxRotation:45},grid:{color:'#334155'}}}}});
 
   // Chart: bars
   const vd = sC.map(f=>({label:LABELS[f],value:last[f]||0}));
