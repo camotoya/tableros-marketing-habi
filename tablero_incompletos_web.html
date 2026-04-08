@@ -224,11 +224,24 @@ function render(rows, gran, filterLabel) {
   tb += `<tr class="row-pct"><td>% Incompletos Actualmente</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.total>0?((r.incompletos/r.total)*100).toFixed(1):'0.0';return `<td>${pct}%</td>`;}).join('')+'</tr>';
   tb += `<tr class="row-inc-real"><td>Incompletos Totales (>60min tras creación)</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).inc_real_60m.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
   tb += `<tr class="row-pct-real"><td>% Incompletos Totales</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.total>0?((r.inc_real_60m/r.total)*100).toFixed(2):'0.00';return `<td>${pct}%</td>`;}).join('')+'</tr>';
+  tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
+
+  // Variables de completitud
+  tb += `<tr class="row-group-header"><td colspan="${cs}">Variables de completitud (definen estado incompleto en DMN)</td></tr>`;
+  sC.forEach(f=>{const pcts=rows.map(r=>r.total>0?(r[f]||0)/r.total*100:0);const mx=Math.max(...pcts);tb+=`<tr><td>${LABELS[f]}</td>`+periods.map((p,idx)=>{const r=rows.find(x=>x.periodo===p);return varCell(r[f]||0,r.total,mx);}).join('')+'</tr>';});
+  tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
+
+  // Otras variables
+  tb += `<tr class="row-group-header"><td colspan="${cs}">Otras variables (informativas, no afectan completitud)</td></tr>`;
+  sO.forEach(f=>{const pcts=rows.map(r=>r.total>0?(r[f]||0)/r.total*100:0);const mx=Math.max(...pcts);tb+=`<tr><td>${LABELS[f]}</td>`+periods.map((p,idx)=>{const r=rows.find(x=>x.periodo===p);return varCell(r[f]||0,r.total,mx);}).join('')+'</tr>';});
+  tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
+
+  // Recuperados
   tb += `<tr class="row-recovered"><td>Recuperados (salieron de incompleto)</td>`+periods.map(p=>`<td>${rows.find(r=>r.periodo===p).recuperados.toLocaleString('es-CO')}</td>`).join('')+'</tr>';
   tb += `<tr class="row-pct-rec"><td>% Recuperación</td>`+periods.map(p=>{const r=rows.find(x=>x.periodo===p);const pct=r.inc_real_60m>0?((r.recuperados/r.inc_real_60m)*100).toFixed(1):'0.0';return `<td>${pct}%</td>`;}).join('')+'</tr>';
   tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
 
-  // Agent section — sorted by total recovered desc
+  // Agentes — sorted by total recovered desc
   const agentTotals = AGENT_FIELDS.map(af=>({...af, total:rows.reduce((s,r)=>s+(r[af.key]||0),0)})).filter(a=>a.total>0).sort((a,b)=>b.total-a.total);
   if (agentTotals.length > 0) {
     tb += `<tr class="row-group-header"><td colspan="${cs}">Agentes que recuperaron leads (salieron de incompleto >60min)</td></tr>`;
@@ -240,14 +253,7 @@ function render(rows, gran, filterLabel) {
         return varCell(r[af.key]||0, r.recuperados, mx);
       }).join('') + '</tr>';
     });
-    tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
   }
-
-  tb += `<tr class="row-group-header"><td colspan="${cs}">Variables de completitud (definen estado incompleto en DMN)</td></tr>`;
-  sC.forEach(f=>{const pcts=rows.map(r=>r.total>0?(r[f]||0)/r.total*100:0);const mx=Math.max(...pcts);tb+=`<tr><td>${LABELS[f]}</td>`+periods.map((p,idx)=>{const r=rows.find(x=>x.periodo===p);return varCell(r[f]||0,r.total,mx);}).join('')+'</tr>';});
-  tb += `<tr class="row-separator"><td colspan="${cs}"></td></tr>`;
-  tb += `<tr class="row-group-header"><td colspan="${cs}">Otras variables (informativas, no afectan completitud)</td></tr>`;
-  sO.forEach(f=>{const pcts=rows.map(r=>r.total>0?(r[f]||0)/r.total*100:0);const mx=Math.max(...pcts);tb+=`<tr><td>${LABELS[f]}</td>`+periods.map((p,idx)=>{const r=rows.find(x=>x.periodo===p);return varCell(r[f]||0,r.total,mx);}).join('')+'</tr>';});
   document.querySelector('#mainTable tbody').innerHTML = tb;
 
   // Chart: % lines + bars for absolute count on right axis
