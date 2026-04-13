@@ -203,7 +203,7 @@ jobs:
               COALESCE(fr.apr,0) apr, COALESCE(fr.acp,0) acp, COALESCE(fr.cie,0) cie
             FROM `papyrus-data.habi_wh_bi.tabla_inmuebles_general` tig
             LEFT JOIN funnel_reach fr ON fr.c = 'Colombia' AND fr.nid = tig.nid
-            WHERE tig.nid IS NOT NULL AND tig.fecha_creacion IS NOT NULL AND tig.fuente_id IN (3,7,20,35,39,47)
+            WHERE tig.nid IS NOT NULL AND tig.fecha_creacion IS NOT NULL AND DATE(tig.fecha_creacion) < CURRENT_DATE() AND tig.fuente_id IN (3,7,20,35,39,47)
             UNION ALL
             SELECT 'México' AS c, tig.nid, tig.fuente_id, tig.fuente, DATE(tig.fecha_creacion) AS fecha,
               IF(tig.id_ultimo_estado IN (20,63), 1, 0) AS calificado,
@@ -211,9 +211,9 @@ jobs:
               COALESCE(fr.apr,0) apr, COALESCE(fr.acp,0) acp, COALESCE(fr.cie,0) cie
             FROM `papyrus-data-mx.habi_wh_bi.tabla_inmuebles_general` tig
             LEFT JOIN funnel_reach fr ON fr.c = 'México' AND fr.nid = tig.nid
-            WHERE tig.nid IS NOT NULL AND tig.fecha_creacion IS NOT NULL AND tig.fuente_id IN (3,7,35,39,46,47)
+            WHERE tig.nid IS NOT NULL AND tig.fecha_creacion IS NOT NULL AND DATE(tig.fecha_creacion) < CURRENT_DATE() AND tig.fuente_id IN (3,7,35,39,46,47)
           ),
-          day_periods AS (SELECT DISTINCT fecha FROM base WHERE fecha <= CURRENT_DATE() ORDER BY fecha DESC LIMIT 25),
+          day_periods AS (SELECT DISTINCT fecha FROM base ORDER BY fecha DESC LIMIT 25),
           week_periods AS (SELECT DISTINCT DATE_TRUNC(fecha, ISOWEEK) p FROM base ORDER BY p DESC LIMIT 25),
           comm_periods AS (SELECT DISTINCT DATE_TRUNC(fecha, WEEK(WEDNESDAY)) p FROM base ORDER BY p DESC LIMIT 25),
           quarter_periods AS (SELECT DISTINCT DATE_TRUNC(fecha, QUARTER) p FROM base ORDER BY p DESC LIMIT 25),
