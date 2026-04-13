@@ -10,6 +10,7 @@
   .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
   .header h1 { font-size: 22px; font-weight: 600; color: #f8fafc; }
   .header h1 span#countryTitle { color: #818cf8; }
+  .header .refresh-info { font-size: 13px; color: #64748b; }
 
   .controls { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: stretch; }
   .control-card { background: #1e293b; border-radius: 10px; border: 1px solid #334155; padding: 14px 20px; }
@@ -22,7 +23,6 @@
   .filter-bar input[type="checkbox"], .filter-bar input[type="radio"] { accent-color: #818cf8; width: 15px; height: 15px; cursor: pointer; }
   .filter-bar .select-all { border-right: 1px solid #334155; padding-right: 14px; }
   .fuente-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 3px; font-weight: 600; }
-  .country-sep { border-right: 1px solid #334155; padding-right: 14px; margin-right: 2px; }
 
   select.granularity { background: #334155; color: #e2e8f0; border: 1px solid #4b5563; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: 500; }
   select.granularity:focus { outline: none; border-color: #818cf8; }
@@ -30,7 +30,7 @@
   .table-container { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow-x: auto; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
   thead th { background: #334155; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 12px 14px; text-align: right; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
-  thead th:first-child { text-align: left; min-width: 260px; position: sticky; left: 0; z-index: 3; background: #334155; border-right: 2px solid #4b5563; }
+  thead th:first-child { text-align: left; min-width: 200px; position: sticky; left: 0; z-index: 3; background: #334155; border-right: 2px solid #4b5563; }
   tbody td { padding: 10px 14px; text-align: right; border-top: 1px solid #283548; white-space: nowrap; }
   tbody td:first-child { text-align: left; font-weight: 500; color: #cbd5e1; position: sticky; left: 0; z-index: 1; background: #1e293b; border-right: 2px solid #4b5563; }
   tbody tr { background: #1e293b; }
@@ -39,14 +39,7 @@
 
   tbody tr.row-total td { font-weight: 700; color: #f8fafc; font-size: 14px; background: #1a2744; }
   tbody tr.row-total td:first-child { background: #1a2744; }
-  tbody tr.row-mm td { font-weight: 700; color: #34d399; font-size: 14px; background: #0f2920; }
-  tbody tr.row-mm td:first-child { background: #0f2920; }
-  tbody tr.row-pct td { font-weight: 600; font-size: 13px; background: #0f2920; }
-  tbody tr.row-pct td:first-child { background: #0f2920; }
-  tbody tr.row-separator td { padding: 0; height: 3px; background: #0f172a; border: none; }
-  tbody tr.row-separator td:first-child { background: #0f172a; border-right-color: #0f172a; }
-</style>
-<style>
+
   .back-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 13px; margin-bottom: 16px; transition: color 0.15s, border-color 0.15s; }
   .back-link:hover { color: #818cf8; border-color: #818cf8; }
 </style>
@@ -55,6 +48,7 @@
 <a href="../" class="back-link">← Volver (Tableros Marketing Sellers)</a>
 <div class="header">
   <h1>Funnel Sellers — <span id="countryTitle">México</span></h1>
+  <div class="refresh-info"><span id="lastUpdate"></span></div>
 </div>
 
 <div class="controls">
@@ -68,9 +62,10 @@
   <div class="control-card">
     <div class="control-label">Granularidad</div>
     <select class="granularity" id="granSelect" onchange="onUpdate()">
-      <option value="M" selected>Mensual</option>
-      <option value="W">Semanal</option>
       <option value="D">Diario</option>
+      <option value="W">Semanal (lun-dom)</option>
+      <option value="C">Ciclo comercial (mié-mar)</option>
+      <option value="M" selected>Mensual</option>
       <option value="Q">Trimestral</option>
       <option value="Y">Anual</option>
     </select>
@@ -84,45 +79,60 @@
 </div>
 
 <div class="table-container">
-  <table id="mainTable"><thead><tr><th>Metrica</th></tr></thead><tbody></tbody></table>
+  <table id="mainTable"><thead><tr><th>Métrica</th></tr></thead><tbody></tbody></table>
 </div>
 
 <script>
+// Fuente IDs por país, en el orden solicitado:
+// WEB, Leadforms, Estudio Inmueble, CRM(CO)/Propiedades(MX), Broker, Comercial
+// Los labels se resuelven en runtime leyendo el campo `fn` del primer registro con ese fuente_id
+// (así el nombre viene tal cual está en la tabla, sin hardcodear).
 const FUENTES_BY_COUNTRY = {
   'Colombia': [
-    { key: 'WEB', label: 'WEB', id: 3, color: '#818cf8' },
-    { key: 'Estudio Inmueble', label: 'Estudio Inmueble', id: 7, color: '#34d399' },
-    { key: 'Leadforms', label: 'Leadforms', id: 47, color: '#a78bfa' },
-    { key: 'CRM', label: 'CRM', id: 20, color: '#fbbf24' },
-    { key: 'Broker', label: 'Broker', id: 39, color: '#fb923c' },
-    { key: 'Comercial DataBase', label: 'Comercial DataBase', id: 35, color: '#f87171' }
+    { id: 3,  color: '#818cf8' },  // WEB
+    { id: 47, color: '#a78bfa' },  // lead_forms
+    { id: 7,  color: '#34d399' },  // Estudio Inmueble
+    { id: 20, color: '#fbbf24' },  // CRM
+    { id: 39, color: '#fb923c' },  // Broker
+    { id: 35, color: '#f87171' }   // comercial
   ],
   'México': [
-    { key: 'WEB', label: 'WEB', id: 3, color: '#818cf8' },
-    { key: 'Estudio Inmueble', label: 'Estudio Inmueble', id: 7, color: '#34d399' },
-    { key: 'Leadforms', label: 'Leadforms', id: 47, color: '#a78bfa' },
-    { key: 'Propiedades', label: 'Propiedades', id: 46, color: '#fbbf24' },
-    { key: 'Broker', label: 'Broker', id: 39, color: '#fb923c' },
-    { key: 'Comercial DataBase', label: 'Comercial DataBase', id: 35, color: '#f87171' }
+    { id: 3,  color: '#818cf8' },  // WEB
+    { id: 47, color: '#a78bfa' },  // Lead Forms
+    { id: 7,  color: '#34d399' },  // Estudio Inmueble
+    { id: 46, color: '#fbbf24' },  // Propiedades
+    { id: 39, color: '#fb923c' },  // Broker
+    { id: 35, color: '#f87171' }   // Comercial
   ]
 };
 
+const GRAN_LABELS = { D:'Diario', W:'Semanal', C:'Ciclo comercial', M:'Mensual', Q:'Trimestral', Y:'Anual' };
 const SHOW_COUNT = 20;
+
 let RAW_DATA = [];
+let LABEL_CACHE = {}; // {"Colombia:3": "WEB", ...}
 
 function getCountry() { return document.querySelector('input[name="country"]:checked').value; }
 function getGran() { return document.getElementById('granSelect').value; }
-function getSelFuentes() { return [...document.querySelectorAll('.fuente-chk:checked')].map(c => c.value); }
+function getSelFuentes() { return [...document.querySelectorAll('.fuente-chk:checked')].map(c => +c.value); }
+
+function labelFor(country, id) {
+  return LABEL_CACHE[`${country}:${id}`] || `ID ${id}`;
+}
+
+function buildLabelCache() {
+  RAW_DATA.forEach(r => { LABEL_CACHE[`${r.c}:${r.f}`] = r.fn; });
+}
 
 function buildFuenteCheckboxes() {
   const country = getCountry();
   const fb = document.getElementById('filterBar');
-  // Remove old fuente checkboxes (keep "Todas")
   fb.querySelectorAll('.fuente-lbl').forEach(el => el.remove());
   FUENTES_BY_COUNTRY[country].forEach(f => {
     const lbl = document.createElement('label');
     lbl.className = 'fuente-lbl';
-    lbl.innerHTML = `<input type="checkbox" class="fuente-chk" value="${f.key}" checked onchange="onUpdate()"> ${f.label} <span class="fuente-tag" style="background:${f.color}30;color:${f.color}">ID ${f.id}</span>`;
+    const name = labelFor(country, f.id);
+    lbl.innerHTML = `<input type="checkbox" class="fuente-chk" value="${f.id}" checked onchange="onUpdate()"> ${name} <span class="fuente-tag" style="background:${f.color}30;color:${f.color}">ID ${f.id}</span>`;
     fb.appendChild(lbl);
   });
 }
@@ -137,20 +147,24 @@ function onCountryChange() {
 }
 
 function formatPeriod(p, g) {
-  if (g === 'M') { const [y,m] = p.split('-'); return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][+m-1] + '-' + y.slice(2); }
-  if (g === 'W') { return p.replace('W0','S').replace('W','S'); }
-  if (g === 'Q') { return p; }
+  const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  if (g === 'M') { const [y,m] = p.split('-'); return MONTHS[+m-1] + '-' + y.slice(2); }
+  if (g === 'W' || g === 'C') {
+    // p es una fecha ISO tipo "2026-04-06" (primer día del período)
+    const d = new Date(p + 'T00:00:00');
+    return `${String(d.getDate()).padStart(2,'0')} ${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+  }
+  if (g === 'Q') { return p; } // ya viene como "2026-Q1"
   if (g === 'Y') { return p; }
-  return p.slice(5);
+  return p.slice(5); // D: MM-DD
 }
 
-function aggregate(gran, country, selFuentes) {
-  const filtered = RAW_DATA.filter(r => r.g === gran && r.c === country && selFuentes.includes(r.f));
+function aggregate(gran, country, selIds) {
+  const filtered = RAW_DATA.filter(r => r.g === gran && r.c === country && selIds.includes(r.f));
   const periodSet = {};
   filtered.forEach(r => {
-    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, t: 0, mm: 0 };
+    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, t: 0 };
     periodSet[r.p].t += r.t;
-    periodSet[r.p].mm += r.mm;
   });
   return Object.values(periodSet).sort((a, b) => a.p.localeCompare(b.p));
 }
@@ -168,7 +182,8 @@ function onUpdate() {
   }
   const g = getGran();
   let rows = aggregate(g, country, sel);
-  rows = rows.slice(-SHOW_COUNT);
+  // Para D/W/C/Q mostramos últimos SHOW_COUNT, para M/Y mostramos todo lo disponible al final
+  if (g === 'Y') { rows = rows; } else { rows = rows.slice(-SHOW_COUNT); }
   render(rows, g);
 }
 
@@ -176,46 +191,35 @@ function render(rows, gran) {
   const periods = rows.map(r => r.p);
   const pFmt = p => formatPeriod(p, gran);
 
-  document.querySelector('#mainTable thead tr').innerHTML = '<th>Metrica</th>' + periods.map(p => `<th>${pFmt(p)}</th>`).join('');
+  if (!periods.length) {
+    document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>';
+    document.querySelector('#mainTable tbody').innerHTML = '<tr><td colspan="2" style="text-align:center;padding:40px;color:#64748b">Sin datos para esta combinación</td></tr>';
+    return;
+  }
+
+  document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>' + periods.map(p => `<th>${pFmt(p)}</th>`).join('');
 
   let tb = '';
-
-  // Row 1: Total registros
-  tb += `<tr class="row-total"><td>Total registros</td>` + periods.map(p => {
+  tb += `<tr class="row-total"><td>Registros</td>` + periods.map(p => {
     const r = rows.find(x => x.p === p);
     return `<td>${fmt(r.t)}</td>`;
-  }).join('') + '</tr>';
-
-  // Row 2: Calificados MM
-  tb += `<tr class="row-mm"><td>Calificados MM (No gestionado + Sin pricing)</td>` + periods.map(p => {
-    const r = rows.find(x => x.p === p);
-    return `<td>${fmt(r.mm)}</td>`;
-  }).join('') + '</tr>';
-
-  // Row 3: % MM with conditional formatting
-  const pctValues = periods.map(p => { const r = rows.find(x => x.p === p); return r.t > 0 ? r.mm / r.t * 100 : 0; });
-  const pctMin = Math.min(...pctValues);
-  const pctMax = Math.max(...pctValues);
-  const pctRange = pctMax - pctMin || 1;
-  tb += `<tr class="row-pct"><td>% Calificados MM</td>` + periods.map((p, i) => {
-    const pct = pctValues[i];
-    const ratio = (pct - pctMin) / pctRange; // 0 = lowest, 1 = highest
-    const r = Math.round(248 - ratio * 196); // red: 248 → 52
-    const g = Math.round(52 + ratio * 159);  // green: 52 → 211
-    const b = Math.round(52 + ratio * 101);  // blue: 52 → 153
-    return `<td style="color:rgb(${r},${g},${b})">${pct.toFixed(1)}%</td>`;
   }).join('') + '</tr>';
 
   document.querySelector('#mainTable tbody').innerHTML = tb;
 }
 
 // Init
-buildFuenteCheckboxes();
-fetch('mx_data.json')
+fetch('data.json')
   .then(r => r.json())
-  .then(data => { RAW_DATA = data; onUpdate(); })
+  .then(data => {
+    RAW_DATA = data;
+    buildLabelCache();
+    buildFuenteCheckboxes();
+    document.getElementById('lastUpdate').textContent = `Datos al ${new Date().toLocaleString('es-CO')}`;
+    onUpdate();
+  })
   .catch(() => {
-    document.querySelector('#mainTable tbody').innerHTML = '<tr><td colspan="2" style="padding:40px;color:#f87171;text-align:center">No se encontro mx_data.json</td></tr>';
+    document.querySelector('#mainTable tbody').innerHTML = '<tr><td colspan="2" style="padding:40px;color:#f87171;text-align:center">No se encontró data.json</td></tr>';
   });
 </script>
 </body>
