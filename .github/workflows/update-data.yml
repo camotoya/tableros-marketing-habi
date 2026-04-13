@@ -178,11 +178,13 @@ jobs:
         run: |
           bq query --use_legacy_sql=false --format=json --max_rows=100000 < <(cat <<'SQL'
           WITH base AS (
-            SELECT 'Colombia' AS c, nid, fuente_id, fuente, DATE(fecha_creacion) AS fecha
+            SELECT 'Colombia' AS c, nid, fuente_id, fuente, DATE(fecha_creacion) AS fecha,
+              IF(last_estado_id IN (20,63), 1, 0) AS calificado
             FROM `papyrus-data.habi_wh_bi.tabla_inmuebles_general`
             WHERE nid IS NOT NULL AND fecha_creacion IS NOT NULL AND fuente_id IN (3,7,20,35,39,47)
             UNION ALL
-            SELECT 'México' AS c, nid, fuente_id, fuente, DATE(fecha_creacion) AS fecha
+            SELECT 'México' AS c, nid, fuente_id, fuente, DATE(fecha_creacion) AS fecha,
+              IF(id_ultimo_estado IN (20,63), 1, 0) AS calificado
             FROM `papyrus-data-mx.habi_wh_bi.tabla_inmuebles_general`
             WHERE nid IS NOT NULL AND fecha_creacion IS NOT NULL AND fuente_id IN (3,7,35,39,46,47)
           ),
@@ -190,12 +192,12 @@ jobs:
           week_periods AS (SELECT DISTINCT DATE_TRUNC(fecha, ISOWEEK) p FROM base WHERE DATE_TRUNC(fecha, ISOWEEK) < DATE_TRUNC(CURRENT_DATE(), ISOWEEK) ORDER BY p DESC LIMIT 25),
           comm_periods AS (SELECT DISTINCT DATE_TRUNC(fecha, WEEK(WEDNESDAY)) p FROM base WHERE DATE_TRUNC(fecha, WEEK(WEDNESDAY)) < DATE_TRUNC(CURRENT_DATE(), WEEK(WEDNESDAY)) ORDER BY p DESC LIMIT 25),
           quarter_periods AS (SELECT DISTINCT DATE_TRUNC(fecha, QUARTER) p FROM base WHERE DATE_TRUNC(fecha, QUARTER) < DATE_TRUNC(CURRENT_DATE(), QUARTER) ORDER BY p DESC LIMIT 25),
-          daily AS (SELECT 'D' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(fecha AS STRING) p, COUNT(DISTINCT nid) t FROM base WHERE fecha IN (SELECT fecha FROM day_periods) GROUP BY c, f, p),
-          weekly AS (SELECT 'W' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(fecha, ISOWEEK) AS STRING) p, COUNT(DISTINCT nid) t FROM base WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT p FROM week_periods) GROUP BY c, f, p),
-          commercial AS (SELECT 'C' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(fecha, WEEK(WEDNESDAY)) AS STRING) p, COUNT(DISTINCT nid) t FROM base WHERE DATE_TRUNC(fecha, WEEK(WEDNESDAY)) IN (SELECT p FROM comm_periods) GROUP BY c, f, p),
-          monthly AS (SELECT 'M' g, c, fuente_id f, ANY_VALUE(fuente) fn, FORMAT_DATE('%Y-%m', fecha) p, COUNT(DISTINCT nid) t FROM base WHERE DATE_TRUNC(fecha, MONTH) < DATE_TRUNC(CURRENT_DATE(), MONTH) GROUP BY c, f, p),
-          quarterly AS (SELECT 'Q' g, c, fuente_id f, ANY_VALUE(fuente) fn, CONCAT(CAST(EXTRACT(YEAR FROM fecha) AS STRING), '-Q', CAST(EXTRACT(QUARTER FROM fecha) AS STRING)) p, COUNT(DISTINCT nid) t FROM base WHERE DATE_TRUNC(fecha, QUARTER) IN (SELECT p FROM quarter_periods) GROUP BY c, f, p),
-          yearly AS (SELECT 'Y' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(EXTRACT(YEAR FROM fecha) AS STRING) p, COUNT(DISTINCT nid) t FROM base WHERE DATE_TRUNC(fecha, YEAR) < DATE_TRUNC(CURRENT_DATE(), YEAR) GROUP BY c, f, p)
+          daily AS (SELECT 'D' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(fecha AS STRING) p, COUNT(DISTINCT nid) t, COUNT(DISTINCT IF(calificado=1,nid,NULL)) cal FROM base WHERE fecha IN (SELECT fecha FROM day_periods) GROUP BY c, f, p),
+          weekly AS (SELECT 'W' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(fecha, ISOWEEK) AS STRING) p, COUNT(DISTINCT nid) t, COUNT(DISTINCT IF(calificado=1,nid,NULL)) cal FROM base WHERE DATE_TRUNC(fecha, ISOWEEK) IN (SELECT p FROM week_periods) GROUP BY c, f, p),
+          commercial AS (SELECT 'C' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(fecha, WEEK(WEDNESDAY)) AS STRING) p, COUNT(DISTINCT nid) t, COUNT(DISTINCT IF(calificado=1,nid,NULL)) cal FROM base WHERE DATE_TRUNC(fecha, WEEK(WEDNESDAY)) IN (SELECT p FROM comm_periods) GROUP BY c, f, p),
+          monthly AS (SELECT 'M' g, c, fuente_id f, ANY_VALUE(fuente) fn, FORMAT_DATE('%Y-%m', fecha) p, COUNT(DISTINCT nid) t, COUNT(DISTINCT IF(calificado=1,nid,NULL)) cal FROM base WHERE DATE_TRUNC(fecha, MONTH) < DATE_TRUNC(CURRENT_DATE(), MONTH) GROUP BY c, f, p),
+          quarterly AS (SELECT 'Q' g, c, fuente_id f, ANY_VALUE(fuente) fn, CONCAT(CAST(EXTRACT(YEAR FROM fecha) AS STRING), '-Q', CAST(EXTRACT(QUARTER FROM fecha) AS STRING)) p, COUNT(DISTINCT nid) t, COUNT(DISTINCT IF(calificado=1,nid,NULL)) cal FROM base WHERE DATE_TRUNC(fecha, QUARTER) IN (SELECT p FROM quarter_periods) GROUP BY c, f, p),
+          yearly AS (SELECT 'Y' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(EXTRACT(YEAR FROM fecha) AS STRING) p, COUNT(DISTINCT nid) t, COUNT(DISTINCT IF(calificado=1,nid,NULL)) cal FROM base WHERE DATE_TRUNC(fecha, YEAR) < DATE_TRUNC(CURRENT_DATE(), YEAR) GROUP BY c, f, p)
           SELECT * FROM daily UNION ALL SELECT * FROM weekly UNION ALL SELECT * FROM commercial UNION ALL SELECT * FROM monthly UNION ALL SELECT * FROM quarterly UNION ALL SELECT * FROM yearly ORDER BY g, c, f, p
           SQL
           ) > /tmp/funnel_raw.json
@@ -210,6 +212,7 @@ jobs:
           for r in data:
               r['f'] = int(r['f'])
               r['t'] = int(r['t'])
+              r['cal'] = int(r['cal'])
           with open('tablero-marketing/data.json','w') as f:
               json.dump(data, f, separators=(',',':'))
           print(f'Funnel rows: {len(data)}')

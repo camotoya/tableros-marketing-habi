@@ -39,6 +39,10 @@
 
   tbody tr.row-total td { font-weight: 700; color: #f8fafc; font-size: 14px; background: #1a2744; }
   tbody tr.row-total td:first-child { background: #1a2744; }
+  tbody tr.row-cal td { font-weight: 700; color: #34d399; font-size: 14px; background: #0f2920; }
+  tbody tr.row-cal td:first-child { background: #0f2920; }
+  tbody tr.row-pct td { font-weight: 600; font-size: 13px; background: #0f2920; }
+  tbody tr.row-pct td:first-child { background: #0f2920; color: #94a3b8; }
 
   .back-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 13px; margin-bottom: 16px; transition: color 0.15s, border-color 0.15s; }
   .back-link:hover { color: #818cf8; border-color: #818cf8; }
@@ -163,8 +167,9 @@ function aggregate(gran, country, selIds) {
   const filtered = RAW_DATA.filter(r => r.g === gran && r.c === country && selIds.includes(r.f));
   const periodSet = {};
   filtered.forEach(r => {
-    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, t: 0 };
+    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, t: 0, cal: 0 };
     periodSet[r.p].t += r.t;
+    periodSet[r.p].cal += (r.cal || 0);
   });
   return Object.values(periodSet).sort((a, b) => a.p.localeCompare(b.p));
 }
@@ -203,6 +208,25 @@ function render(rows, gran) {
   tb += `<tr class="row-total"><td>Registros</td>` + periods.map(p => {
     const r = rows.find(x => x.p === p);
     return `<td>${fmt(r.t)}</td>`;
+  }).join('') + '</tr>';
+
+  tb += `<tr class="row-cal"><td>Calificados (No gestionado + Sin pricing inicial)</td>` + periods.map(p => {
+    const r = rows.find(x => x.p === p);
+    return `<td>${fmt(r.cal)}</td>`;
+  }).join('') + '</tr>';
+
+  // % Calificados con heatmap por fila (min rojo → max verde)
+  const pctValues = periods.map(p => { const r = rows.find(x => x.p === p); return r.t > 0 ? r.cal / r.t * 100 : 0; });
+  const pctMin = Math.min(...pctValues);
+  const pctMax = Math.max(...pctValues);
+  const pctRange = pctMax - pctMin || 1;
+  tb += `<tr class="row-pct"><td>% Calificados</td>` + periods.map((p, i) => {
+    const pct = pctValues[i];
+    const ratio = (pct - pctMin) / pctRange;
+    const r = Math.round(248 - ratio * 196);
+    const gc = Math.round(52 + ratio * 159);
+    const b = Math.round(52 + ratio * 101);
+    return `<td style="color:rgb(${r},${gc},${b})">${pct.toFixed(1)}%</td>`;
   }).join('') + '</tr>';
 
   document.querySelector('#mainTable tbody').innerHTML = tb;
