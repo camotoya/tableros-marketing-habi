@@ -31,6 +31,8 @@
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
   thead th { background: #334155; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 12px 14px; text-align: right; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
   thead th:first-child { text-align: left; min-width: 200px; position: sticky; left: 0; z-index: 3; background: #334155; border-right: 2px solid #4b5563; }
+  thead th.in-progress { font-style: italic; color: #fbbf24; }
+  thead th.in-progress::after { content: '*'; margin-left: 3px; }
   tbody td { padding: 10px 14px; text-align: right; border-top: 1px solid #283548; white-space: nowrap; }
   tbody td:first-child { text-align: left; font-weight: 500; color: #cbd5e1; position: sticky; left: 0; z-index: 1; background: #1e293b; border-right: 2px solid #4b5563; }
   tbody tr { background: #1e293b; }
@@ -156,13 +158,42 @@ function formatPeriod(p, g) {
   const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   if (g === 'M') { const [y,m] = p.split('-'); return MONTHS[+m-1] + '-' + y.slice(2); }
   if (g === 'W' || g === 'C') {
-    // p es una fecha ISO tipo "2026-04-06" (primer día del período)
     const d = new Date(p + 'T00:00:00');
     return `${String(d.getDate()).padStart(2,'0')} ${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
   }
-  if (g === 'Q') { return p; } // ya viene como "2026-Q1"
+  if (g === 'Q') { return p; }
   if (g === 'Y') { return p; }
   return p.slice(5); // D: MM-DD
+}
+
+// Returns true if the given period identifier is the one currently in progress.
+function isCurrentPeriod(p, g) {
+  const now = new Date();
+  const y = now.getFullYear();
+  const mo = now.getMonth() + 1; // 1-12
+  const pad = n => String(n).padStart(2,'0');
+  const isoDate = `${y}-${pad(mo)}-${pad(now.getDate())}`;
+
+  if (g === 'D') return p === isoDate;
+  if (g === 'M') return p === `${y}-${pad(mo)}`;
+  if (g === 'Q') return p === `${y}-Q${Math.floor((mo-1)/3)+1}`;
+  if (g === 'Y') return p === String(y);
+  if (g === 'W') {
+    // ISO week starts Monday. Compute Monday of current week.
+    const d = new Date(now); d.setHours(0,0,0,0);
+    const day = d.getDay() || 7; // 1..7 (Sun=7)
+    d.setDate(d.getDate() - (day - 1));
+    return p === `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  if (g === 'C') {
+    // Commercial cycle starts Wednesday. Compute Wednesday of current cycle.
+    const d = new Date(now); d.setHours(0,0,0,0);
+    const day = d.getDay(); // 0..6 (Sun..Sat)
+    const diff = (day - 3 + 7) % 7; // days since last Wednesday
+    d.setDate(d.getDate() - diff);
+    return p === `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+  return false;
 }
 
 const STAGE_KEYS = ['cal','asg','cit','vis','apr','acp','cie'];
@@ -219,7 +250,11 @@ function render(rows, gran) {
   }
 
   const cs = periods.length + 1;
-  document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>' + periods.map(p => `<th>${pFmt(p)}</th>`).join('');
+  document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>' + periods.map(p => {
+    const cls = isCurrentPeriod(p, gran) ? ' class="in-progress"' : '';
+    const title = isCurrentPeriod(p, gran) ? ' title="Período en curso — datos parciales"' : '';
+    return `<th${cls}${title}>${pFmt(p)}</th>`;
+  }).join('');
 
   let tb = '';
 
