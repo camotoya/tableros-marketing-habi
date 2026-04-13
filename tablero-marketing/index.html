@@ -39,10 +39,12 @@
 
   tbody tr.row-total td { font-weight: 700; color: #f8fafc; font-size: 14px; background: #1a2744; }
   tbody tr.row-total td:first-child { background: #1a2744; }
-  tbody tr.row-cal td { font-weight: 700; color: #34d399; font-size: 14px; background: #0f2920; }
-  tbody tr.row-cal td:first-child { background: #0f2920; }
-  tbody tr.row-pct td { font-weight: 600; font-size: 13px; background: #0f2920; }
-  tbody tr.row-pct td:first-child { background: #0f2920; color: #94a3b8; }
+  tbody tr.row-stage td { font-weight: 500; font-size: 13px; }
+  tbody tr.row-stage td:first-child { color: #cbd5e1; }
+  tbody tr.row-stage .n { font-weight: 600; color: #e2e8f0; }
+  tbody tr.row-stage .p { font-size: 11px; opacity: 0.85; margin-left: 6px; }
+  tbody tr.row-sep td { padding: 0; height: 3px; background: #0f172a; border: none; }
+  tbody tr.row-sep td:first-child { background: #0f172a; border-right-color: #0f172a; }
 
   .back-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 13px; margin-bottom: 16px; transition: color 0.15s, border-color 0.15s; }
   .back-link:hover { color: #818cf8; border-color: #818cf8; }
@@ -163,13 +165,27 @@ function formatPeriod(p, g) {
   return p.slice(5); // D: MM-DD
 }
 
+const STAGE_KEYS = ['cal','asg','cit','vis','apr','acp','cie'];
+const STAGE_LABELS = {
+  cal: 'Calificados (No gestionado + Sin pricing inicial)',
+  asg: 'Primer asignación',
+  cit: 'Cita agendada',
+  vis: 'Visita efectuada',
+  apr: 'Aprobado',
+  acp: 'Aceptó oferta',
+  cie: 'Cierre comprado'
+};
+
 function aggregate(gran, country, selIds) {
   const filtered = RAW_DATA.filter(r => r.g === gran && r.c === country && selIds.includes(r.f));
   const periodSet = {};
   filtered.forEach(r => {
-    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, t: 0, cal: 0 };
+    if (!periodSet[r.p]) {
+      periodSet[r.p] = { p: r.p, t: 0 };
+      STAGE_KEYS.forEach(k => periodSet[r.p][k] = 0);
+    }
     periodSet[r.p].t += r.t;
-    periodSet[r.p].cal += (r.cal || 0);
+    STAGE_KEYS.forEach(k => periodSet[r.p][k] += (r[k] || 0));
   });
   return Object.values(periodSet).sort((a, b) => a.p.localeCompare(b.p));
 }
@@ -202,32 +218,41 @@ function render(rows, gran) {
     return;
   }
 
+  const cs = periods.length + 1;
   document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>' + periods.map(p => `<th>${pFmt(p)}</th>`).join('');
 
   let tb = '';
+
+  // Fila 1: Registros (solo absoluto, destacado)
   tb += `<tr class="row-total"><td>Registros</td>` + periods.map(p => {
     const r = rows.find(x => x.p === p);
     return `<td>${fmt(r.t)}</td>`;
   }).join('') + '</tr>';
 
-  tb += `<tr class="row-cal"><td>Calificados (No gestionado + Sin pricing inicial)</td>` + periods.map(p => {
-    const r = rows.find(x => x.p === p);
-    return `<td>${fmt(r.cal)}</td>`;
-  }).join('') + '</tr>';
+  tb += `<tr class="row-sep"><td colspan="${cs}"></td></tr>`;
 
-  // % Calificados con heatmap por fila (min rojo → max verde)
-  const pctValues = periods.map(p => { const r = rows.find(x => x.p === p); return r.t > 0 ? r.cal / r.t * 100 : 0; });
-  const pctMin = Math.min(...pctValues);
-  const pctMax = Math.max(...pctValues);
-  const pctRange = pctMax - pctMin || 1;
-  tb += `<tr class="row-pct"><td>% Calificados</td>` + periods.map((p, i) => {
-    const pct = pctValues[i];
-    const ratio = (pct - pctMin) / pctRange;
-    const r = Math.round(248 - ratio * 196);
-    const gc = Math.round(52 + ratio * 159);
-    const b = Math.round(52 + ratio * 101);
-    return `<td style="color:rgb(${r},${gc},${b})">${pct.toFixed(1)}%</td>`;
-  }).join('') + '</tr>';
+  // Stages: cada uno muestra "count (%)" con heatmap en el %
+  STAGE_KEYS.forEach(key => {
+    const pctValues = periods.map(p => {
+      const r = rows.find(x => x.p === p);
+      return r.t > 0 ? r[key] / r.t * 100 : 0;
+    });
+    const pctMin = Math.min(...pctValues);
+    const pctMax = Math.max(...pctValues);
+    const pctRange = pctMax - pctMin || 1;
+
+    tb += `<tr class="row-stage"><td>${STAGE_LABELS[key]}</td>` + periods.map((p, i) => {
+      const r = rows.find(x => x.p === p);
+      const v = r[key] || 0;
+      const pct = pctValues[i];
+      const ratio = (pct - pctMin) / pctRange;
+      const rc = Math.round(248 - ratio * 196);
+      const gc = Math.round(52 + ratio * 159);
+      const bc = Math.round(52 + ratio * 101);
+      const pctStr = pct >= 10 ? pct.toFixed(1) : pct.toFixed(2);
+      return `<td><span class="n">${fmt(v)}</span><span class="p" style="color:rgb(${rc},${gc},${bc})">${pctStr}%</span></td>`;
+    }).join('') + '</tr>';
+  });
 
   document.querySelector('#mainTable tbody').innerHTML = tb;
 }
