@@ -68,6 +68,13 @@
     </div>
   </div>
   <div class="control-card">
+    <div class="control-label">Vista</div>
+    <div class="filter-bar">
+      <label><input type="radio" name="mode" value="coh" checked onchange="onUpdate()"> Cosechas</label>
+      <label><input type="radio" name="mode" value="evt" onchange="onUpdate()"> Eventos</label>
+    </div>
+  </div>
+  <div class="control-card">
     <div class="control-label">Granularidad</div>
     <select class="granularity" id="granSelect" onchange="onUpdate()">
       <option value="D">Diario</option>
@@ -207,16 +214,24 @@ const STAGE_LABELS = {
   cie: 'Cierre comprado'
 };
 
+function getMode() { return document.querySelector('input[name="mode"]:checked').value; }
+
+// Claves a sumar según modo: cohort usa cal/asg/..., events usa e_cal/e_asg/...
+function stageField(key, mode) { return mode === 'evt' ? 'e_' + key : key; }
+
 function aggregate(gran, country, selIds) {
   const filtered = RAW_DATA.filter(r => r.g === gran && r.c === country && selIds.includes(r.f));
   const periodSet = {};
   filtered.forEach(r => {
     if (!periodSet[r.p]) {
       periodSet[r.p] = { p: r.p, t: 0 };
-      STAGE_KEYS.forEach(k => periodSet[r.p][k] = 0);
+      STAGE_KEYS.forEach(k => { periodSet[r.p][k] = 0; periodSet[r.p]['e_'+k] = 0; });
     }
     periodSet[r.p].t += r.t;
-    STAGE_KEYS.forEach(k => periodSet[r.p][k] += (r[k] || 0));
+    STAGE_KEYS.forEach(k => {
+      periodSet[r.p][k]     += (r[k] || 0);
+      periodSet[r.p]['e_'+k] += (r['e_'+k] || 0);
+    });
   });
   return Object.values(periodSet).sort((a, b) => a.p.localeCompare(b.p));
 }
@@ -267,10 +282,13 @@ function render(rows, gran) {
   tb += `<tr class="row-sep"><td colspan="${cs}"></td></tr>`;
 
   // Stages: cada uno muestra "count (%)" con heatmap en el %
+  // El % siempre se calcula contra Registros (t) del mismo período, en ambos modos.
+  const mode = getMode();
   STAGE_KEYS.forEach(key => {
+    const field = stageField(key, mode);
     const pctValues = periods.map(p => {
       const r = rows.find(x => x.p === p);
-      return r.t > 0 ? r[key] / r.t * 100 : 0;
+      return r.t > 0 ? r[field] / r.t * 100 : 0;
     });
     const pctMin = Math.min(...pctValues);
     const pctMax = Math.max(...pctValues);
@@ -278,7 +296,7 @@ function render(rows, gran) {
 
     tb += `<tr class="row-stage"><td>${STAGE_LABELS[key]}</td>` + periods.map((p, i) => {
       const r = rows.find(x => x.p === p);
-      const v = r[key] || 0;
+      const v = r[field] || 0;
       const pct = pctValues[i];
       const ratio = (pct - pctMin) / pctRange;
       const rc = Math.round(248 - ratio * 196);
