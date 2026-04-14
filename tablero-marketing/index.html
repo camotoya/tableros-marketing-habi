@@ -224,9 +224,10 @@ function aggregate(gran, country, selIds) {
   const periodSet = {};
   filtered.forEach(r => {
     if (!periodSet[r.p]) {
-      periodSet[r.p] = { p: r.p, t: 0 };
+      periodSet[r.p] = { p: r.p, tr: 0, t: 0 };
       STAGE_KEYS.forEach(k => { periodSet[r.p][k] = 0; periodSet[r.p]['e_'+k] = 0; });
     }
+    periodSet[r.p].tr += (r.tr || 0);
     periodSet[r.p].t += r.t;
     STAGE_KEYS.forEach(k => {
       periodSet[r.p][k]     += (r[k] || 0);
@@ -273,10 +274,25 @@ function render(rows, gran) {
 
   let tb = '';
 
-  // Fila 1: Registros (solo absoluto, destacado)
+  // Fila 1: Registros — todas las filas (incluyendo nid NULL)
   tb += `<tr class="row-total"><td>Registros</td>` + periods.map(p => {
     const r = rows.find(x => x.p === p);
-    return `<td>${fmt(r.t)}</td>`;
+    return `<td>${fmt(r.tr)}</td>`;
+  }).join('') + '</tr>';
+
+  // Fila 2: Registros con NID — solo nids únicos, con % vs Registros
+  const nidPcts = periods.map(p => { const r = rows.find(x => x.p === p); return r.tr > 0 ? r.t / r.tr * 100 : 0; });
+  const nidPctMin = Math.min(...nidPcts);
+  const nidPctMax = Math.max(...nidPcts);
+  const nidPctRange = nidPctMax - nidPctMin || 1;
+  tb += `<tr class="row-stage"><td>Registros con NID</td>` + periods.map((p, i) => {
+    const r = rows.find(x => x.p === p);
+    const pct = nidPcts[i];
+    const ratio = (pct - nidPctMin) / nidPctRange;
+    const rc = Math.round(248 - ratio * 196);
+    const gc = Math.round(52 + ratio * 159);
+    const bc = Math.round(52 + ratio * 101);
+    return `<td><span class="n">${fmt(r.t)}</span><span class="p" style="color:rgb(${rc},${gc},${bc})">${pct.toFixed(1)}%</span></td>`;
   }).join('') + '</tr>';
 
   tb += `<tr class="row-sep"><td colspan="${cs}"></td></tr>`;

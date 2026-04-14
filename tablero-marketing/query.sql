@@ -64,8 +64,7 @@ base AS (
   FROM `papyrus-data.habi_wh_bi.tabla_inmuebles_general` tig
   LEFT JOIN funnel_reach fr ON fr.c = 'Colombia' AND fr.nid = tig.nid
   LEFT JOIN cal_events ce ON ce.c = 'Colombia' AND ce.business_id = tig.negocio_id
-  WHERE tig.nid IS NOT NULL
-    AND tig.fecha_creacion IS NOT NULL
+  WHERE tig.fecha_creacion IS NOT NULL
     AND DATE(tig.fecha_creacion) < CURRENT_DATE()
     AND tig.fuente_id IN (3, 7, 20, 35, 39, 47)
 
@@ -76,8 +75,7 @@ base AS (
   FROM `papyrus-data-mx.habi_wh_bi.tabla_inmuebles_general` tig
   LEFT JOIN funnel_reach fr ON fr.c = 'México' AND fr.nid = tig.nid
   LEFT JOIN cal_events ce ON ce.c = 'México' AND ce.business_id = tig.id_negocio
-  WHERE tig.nid IS NOT NULL
-    AND tig.fecha_creacion IS NOT NULL
+  WHERE tig.fecha_creacion IS NOT NULL
     AND DATE(tig.fecha_creacion) < CURRENT_DATE()
     AND tig.fuente_id IN (3, 7, 35, 39, 46, 47)
 ),
@@ -101,6 +99,7 @@ quarter_periods AS (SELECT DISTINCT DATE_TRUNC(fecha, QUARTER) p FROM base ORDER
 -- ======================== COHORT aggregations (group by fecha_creacion) ========================
 cohort_daily AS (
   SELECT 'D' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(fecha AS STRING) p,
+    COUNT(*) tr,
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
@@ -113,6 +112,7 @@ cohort_daily AS (
 ),
 cohort_weekly AS (
   SELECT 'W' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(fecha, ISOWEEK) AS STRING) p,
+    COUNT(*) tr,
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
@@ -125,6 +125,7 @@ cohort_weekly AS (
 ),
 cohort_commercial AS (
   SELECT 'C' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(fecha, WEEK(WEDNESDAY)) AS STRING) p,
+    COUNT(*) tr,
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
@@ -137,6 +138,7 @@ cohort_commercial AS (
 ),
 cohort_monthly AS (
   SELECT 'M' g, c, fuente_id f, ANY_VALUE(fuente) fn, FORMAT_DATE('%Y-%m', fecha) p,
+    COUNT(*) tr,
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
@@ -150,6 +152,7 @@ cohort_monthly AS (
 cohort_quarterly AS (
   SELECT 'Q' g, c, fuente_id f, ANY_VALUE(fuente) fn,
     CONCAT(CAST(EXTRACT(YEAR FROM fecha) AS STRING), '-Q', CAST(EXTRACT(QUARTER FROM fecha) AS STRING)) p,
+    COUNT(*) tr,
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
@@ -162,6 +165,7 @@ cohort_quarterly AS (
 ),
 cohort_yearly AS (
   SELECT 'Y' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(EXTRACT(YEAR FROM fecha) AS STRING) p,
+    COUNT(*) tr,
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
@@ -265,6 +269,7 @@ SELECT
   COALESCE(co.f, ev.f) f,
   COALESCE(co.fn, ev.fn) fn,
   COALESCE(co.p, ev.p) p,
+  COALESCE(co.tr, 0) tr,
   COALESCE(co.t, 0) t,
   COALESCE(co.cal, 0) cal,
   COALESCE(co.asg, 0) asg,
