@@ -198,7 +198,7 @@ jobs:
           import json
           with open('/tmp/funnel_raw.json') as f:
               data = json.load(f)
-          int_keys = ('f','t','cal','asg','cit','vis','apr','acp','cie','e_cal','e_asg','e_cit','e_vis','e_apr','e_acp','e_cie')
+          int_keys = ('f','tr','t','cal','asg','oas','cit','vis','apr','acp','cie','e_cal','e_asg','e_oas','e_cit','e_vis','e_apr','e_acp','e_cie')
           for r in data:
               for k in int_keys:
                   r[k] = int(r[k])

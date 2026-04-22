@@ -58,12 +58,25 @@ cal_events AS (
   GROUP BY c, business_id
 ),
 
+-- Asignados oficiales (data mart de marketing, fuente única para WBR)
+asg_oficial AS (
+  SELECT
+    IF(LOWER(pais) = 'colombia', 'Colombia', 'México') AS c,
+    nid,
+    MIN(DATE(dia)) AS oas_date
+  FROM `papyrus-master.sellers_data_mart.sellers_leads_asignados_marketing_wbr_mart`
+  WHERE nid IS NOT NULL
+  GROUP BY c, nid
+),
+
 base AS (
   SELECT 'Colombia' AS c, tig.nid, tig.fuente_id, tig.fuente, DATE(tig.fecha_creacion) AS fecha,
-    ce.cal_date, fr.asg_date, fr.cit_date, fr.vis_date, fr.apr_date, fr.acp_date, fr.cie_date
+    ce.cal_date, fr.asg_date, fr.cit_date, fr.vis_date, fr.apr_date, fr.acp_date, fr.cie_date,
+    ao.oas_date
   FROM `papyrus-data.habi_wh_bi.tabla_inmuebles_general` tig
   LEFT JOIN funnel_reach fr ON fr.c = 'Colombia' AND fr.nid = tig.nid
   LEFT JOIN cal_events ce ON ce.c = 'Colombia' AND ce.business_id = tig.negocio_id
+  LEFT JOIN asg_oficial ao ON ao.c = 'Colombia' AND ao.nid = tig.nid
   WHERE tig.fecha_creacion IS NOT NULL
     AND DATE(tig.fecha_creacion) < CURRENT_DATE()
     AND tig.fuente_id IN (3, 7, 20, 35, 39, 47)
@@ -71,10 +84,12 @@ base AS (
   UNION ALL
 
   SELECT 'México' AS c, tig.nid, tig.fuente_id, tig.fuente, DATE(tig.fecha_creacion) AS fecha,
-    ce.cal_date, fr.asg_date, fr.cit_date, fr.vis_date, fr.apr_date, fr.acp_date, fr.cie_date
+    ce.cal_date, fr.asg_date, fr.cit_date, fr.vis_date, fr.apr_date, fr.acp_date, fr.cie_date,
+    ao.oas_date
   FROM `papyrus-data-mx.habi_wh_bi.tabla_inmuebles_general` tig
   LEFT JOIN funnel_reach fr ON fr.c = 'México' AND fr.nid = tig.nid
   LEFT JOIN cal_events ce ON ce.c = 'México' AND ce.business_id = tig.id_negocio
+  LEFT JOIN asg_oficial ao ON ao.c = 'México' AND ao.nid = tig.nid
   WHERE tig.fecha_creacion IS NOT NULL
     AND DATE(tig.fecha_creacion) < CURRENT_DATE()
     AND tig.fuente_id IN (3, 7, 35, 39, 46, 47)
@@ -84,6 +99,7 @@ base AS (
 events_raw AS (
   SELECT c, nid, fuente_id, fuente, 'cal' stage, cal_date ev_date FROM base WHERE cal_date IS NOT NULL
   UNION ALL SELECT c, nid, fuente_id, fuente, 'asg', asg_date FROM base WHERE asg_date IS NOT NULL
+  UNION ALL SELECT c, nid, fuente_id, fuente, 'oas', oas_date FROM base WHERE oas_date IS NOT NULL
   UNION ALL SELECT c, nid, fuente_id, fuente, 'cit', cit_date FROM base WHERE cit_date IS NOT NULL
   UNION ALL SELECT c, nid, fuente_id, fuente, 'vis', vis_date FROM base WHERE vis_date IS NOT NULL
   UNION ALL SELECT c, nid, fuente_id, fuente, 'apr', apr_date FROM base WHERE apr_date IS NOT NULL
@@ -103,6 +119,7 @@ cohort_daily AS (
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
+    COUNT(DISTINCT IF(oas_date IS NOT NULL, nid, NULL)) oas,
     COUNT(DISTINCT IF(cit_date IS NOT NULL, nid, NULL)) cit,
     COUNT(DISTINCT IF(vis_date IS NOT NULL, nid, NULL)) vis,
     COUNT(DISTINCT IF(apr_date IS NOT NULL, nid, NULL)) apr,
@@ -116,6 +133,7 @@ cohort_weekly AS (
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
+    COUNT(DISTINCT IF(oas_date IS NOT NULL, nid, NULL)) oas,
     COUNT(DISTINCT IF(cit_date IS NOT NULL, nid, NULL)) cit,
     COUNT(DISTINCT IF(vis_date IS NOT NULL, nid, NULL)) vis,
     COUNT(DISTINCT IF(apr_date IS NOT NULL, nid, NULL)) apr,
@@ -129,6 +147,7 @@ cohort_commercial AS (
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
+    COUNT(DISTINCT IF(oas_date IS NOT NULL, nid, NULL)) oas,
     COUNT(DISTINCT IF(cit_date IS NOT NULL, nid, NULL)) cit,
     COUNT(DISTINCT IF(vis_date IS NOT NULL, nid, NULL)) vis,
     COUNT(DISTINCT IF(apr_date IS NOT NULL, nid, NULL)) apr,
@@ -142,6 +161,7 @@ cohort_monthly AS (
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
+    COUNT(DISTINCT IF(oas_date IS NOT NULL, nid, NULL)) oas,
     COUNT(DISTINCT IF(cit_date IS NOT NULL, nid, NULL)) cit,
     COUNT(DISTINCT IF(vis_date IS NOT NULL, nid, NULL)) vis,
     COUNT(DISTINCT IF(apr_date IS NOT NULL, nid, NULL)) apr,
@@ -156,6 +176,7 @@ cohort_quarterly AS (
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
+    COUNT(DISTINCT IF(oas_date IS NOT NULL, nid, NULL)) oas,
     COUNT(DISTINCT IF(cit_date IS NOT NULL, nid, NULL)) cit,
     COUNT(DISTINCT IF(vis_date IS NOT NULL, nid, NULL)) vis,
     COUNT(DISTINCT IF(apr_date IS NOT NULL, nid, NULL)) apr,
@@ -169,6 +190,7 @@ cohort_yearly AS (
     COUNT(DISTINCT nid) t,
     COUNT(DISTINCT IF(cal_date IS NOT NULL, nid, NULL)) cal,
     COUNT(DISTINCT IF(asg_date IS NOT NULL, nid, NULL)) asg,
+    COUNT(DISTINCT IF(oas_date IS NOT NULL, nid, NULL)) oas,
     COUNT(DISTINCT IF(cit_date IS NOT NULL, nid, NULL)) cit,
     COUNT(DISTINCT IF(vis_date IS NOT NULL, nid, NULL)) vis,
     COUNT(DISTINCT IF(apr_date IS NOT NULL, nid, NULL)) apr,
@@ -182,6 +204,7 @@ events_daily AS (
   SELECT 'D' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(ev_date AS STRING) p,
     COUNT(DISTINCT IF(stage='cal', nid, NULL)) e_cal,
     COUNT(DISTINCT IF(stage='asg', nid, NULL)) e_asg,
+    COUNT(DISTINCT IF(stage='oas', nid, NULL)) e_oas,
     COUNT(DISTINCT IF(stage='cit', nid, NULL)) e_cit,
     COUNT(DISTINCT IF(stage='vis', nid, NULL)) e_vis,
     COUNT(DISTINCT IF(stage='apr', nid, NULL)) e_apr,
@@ -193,6 +216,7 @@ events_weekly AS (
   SELECT 'W' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(ev_date, ISOWEEK) AS STRING) p,
     COUNT(DISTINCT IF(stage='cal', nid, NULL)) e_cal,
     COUNT(DISTINCT IF(stage='asg', nid, NULL)) e_asg,
+    COUNT(DISTINCT IF(stage='oas', nid, NULL)) e_oas,
     COUNT(DISTINCT IF(stage='cit', nid, NULL)) e_cit,
     COUNT(DISTINCT IF(stage='vis', nid, NULL)) e_vis,
     COUNT(DISTINCT IF(stage='apr', nid, NULL)) e_apr,
@@ -204,6 +228,7 @@ events_commercial AS (
   SELECT 'C' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(ev_date, WEEK(WEDNESDAY)) AS STRING) p,
     COUNT(DISTINCT IF(stage='cal', nid, NULL)) e_cal,
     COUNT(DISTINCT IF(stage='asg', nid, NULL)) e_asg,
+    COUNT(DISTINCT IF(stage='oas', nid, NULL)) e_oas,
     COUNT(DISTINCT IF(stage='cit', nid, NULL)) e_cit,
     COUNT(DISTINCT IF(stage='vis', nid, NULL)) e_vis,
     COUNT(DISTINCT IF(stage='apr', nid, NULL)) e_apr,
@@ -215,6 +240,7 @@ events_monthly AS (
   SELECT 'M' g, c, fuente_id f, ANY_VALUE(fuente) fn, FORMAT_DATE('%Y-%m', ev_date) p,
     COUNT(DISTINCT IF(stage='cal', nid, NULL)) e_cal,
     COUNT(DISTINCT IF(stage='asg', nid, NULL)) e_asg,
+    COUNT(DISTINCT IF(stage='oas', nid, NULL)) e_oas,
     COUNT(DISTINCT IF(stage='cit', nid, NULL)) e_cit,
     COUNT(DISTINCT IF(stage='vis', nid, NULL)) e_vis,
     COUNT(DISTINCT IF(stage='apr', nid, NULL)) e_apr,
@@ -227,6 +253,7 @@ events_quarterly AS (
     CONCAT(CAST(EXTRACT(YEAR FROM ev_date) AS STRING), '-Q', CAST(EXTRACT(QUARTER FROM ev_date) AS STRING)) p,
     COUNT(DISTINCT IF(stage='cal', nid, NULL)) e_cal,
     COUNT(DISTINCT IF(stage='asg', nid, NULL)) e_asg,
+    COUNT(DISTINCT IF(stage='oas', nid, NULL)) e_oas,
     COUNT(DISTINCT IF(stage='cit', nid, NULL)) e_cit,
     COUNT(DISTINCT IF(stage='vis', nid, NULL)) e_vis,
     COUNT(DISTINCT IF(stage='apr', nid, NULL)) e_apr,
@@ -238,6 +265,7 @@ events_yearly AS (
   SELECT 'Y' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(EXTRACT(YEAR FROM ev_date) AS STRING) p,
     COUNT(DISTINCT IF(stage='cal', nid, NULL)) e_cal,
     COUNT(DISTINCT IF(stage='asg', nid, NULL)) e_asg,
+    COUNT(DISTINCT IF(stage='oas', nid, NULL)) e_oas,
     COUNT(DISTINCT IF(stage='cit', nid, NULL)) e_cit,
     COUNT(DISTINCT IF(stage='vis', nid, NULL)) e_vis,
     COUNT(DISTINCT IF(stage='apr', nid, NULL)) e_apr,
@@ -273,6 +301,7 @@ SELECT
   COALESCE(co.t, 0) t,
   COALESCE(co.cal, 0) cal,
   COALESCE(co.asg, 0) asg,
+  COALESCE(co.oas, 0) oas,
   COALESCE(co.cit, 0) cit,
   COALESCE(co.vis, 0) vis,
   COALESCE(co.apr, 0) apr,
@@ -280,6 +309,7 @@ SELECT
   COALESCE(co.cie, 0) cie,
   COALESCE(ev.e_cal, 0) e_cal,
   COALESCE(ev.e_asg, 0) e_asg,
+  COALESCE(ev.e_oas, 0) e_oas,
   COALESCE(ev.e_cit, 0) e_cit,
   COALESCE(ev.e_vis, 0) e_vis,
   COALESCE(ev.e_apr, 0) e_apr,
