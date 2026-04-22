@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OKR Marketing — Tableros Marketing</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 24px; }
+
+  .back-link { display: inline-block; color: #818cf8; text-decoration: none; font-size: 13px; margin-bottom: 20px; }
+  .back-link:hover { text-decoration: underline; }
+
+  .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 24px; }
+  .header h1 { font-size: 26px; font-weight: 600; color: #f8fafc; }
+  .header h1 span { color: #818cf8; }
+  .subtitle { font-size: 13px; color: #64748b; margin-top: 2px; }
+
+  .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .pill-group { display: flex; background: #1e293b; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
+  .pill-group label { padding: 6px 16px; font-size: 13px; cursor: pointer; color: #94a3b8; transition: all 0.15s; }
+  .pill-group input { display: none; }
+  .pill-group input:checked + label { background: #818cf8; color: #fff; }
+
+  /* KPI cards */
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 700px) { .kpi-row { grid-template-columns: 1fr; } }
+  .kpi { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+  .kpi-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: #f8fafc; }
+  .kpi-meta { font-size: 13px; color: #94a3b8; margin-top: 6px; }
+  .kpi-delta { display: inline-block; font-size: 13px; font-weight: 600; margin-top: 4px; padding: 2px 8px; border-radius: 4px; }
+  .kpi-delta.up { background: #064e3b; color: #6ee7b7; }
+  .kpi-delta.down { background: #7f1d1d; color: #fca5a5; }
+  .kpi-delta.neutral { background: #334155; color: #94a3b8; }
+
+  /* Charts */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 8px; margin-bottom: 28px; }
+  @media (max-width: 1200px) { .charts-row { grid-template-columns: 1fr; } }
+  .chart-section { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+  .chart-title { font-size: 14px; font-weight: 600; color: #f8fafc; margin-bottom: 16px; }
+  .chart-wrap { position: relative; aspect-ratio: 10 / 7; }
+
+  /* Unified table */
+  .table-container { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 16px; overflow-x: auto; }
+  .okr-table { width: 100%; border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+  .okr-table th, .okr-table td { padding: 5px 8px; text-align: right; }
+  .okr-table th { color: #94a3b8; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; position: sticky; top: 0; background: #1e293b; z-index: 2; }
+  .okr-table td:first-child, .okr-table th:first-child { text-align: left; position: sticky; left: 0; background: #1e293b; z-index: 1; min-width: 90px; }
+  .okr-table .grp-header { text-align: center; color: #818cf8; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 2px solid #818cf8; }
+  .okr-table .grp-asig { border-left: 3px solid #818cf8; }
+  .okr-table .grp-inv { border-left: 3px solid #f59e0b; }
+  .okr-table .grp-cpla { border-left: 3px solid #10b981; }
+  .okr-table .grp-header-inv { color: #f59e0b; border-bottom-color: #f59e0b; }
+  .okr-table .grp-header-cpla { color: #10b981; border-bottom-color: #10b981; }
+  .okr-table .section-row td { background: #0f172a; font-weight: 700; color: #f8fafc; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px 4px; border-bottom: 1px solid #334155; }
+  .okr-table .data-row td { border-bottom: 1px solid #0f172a; }
+  .okr-table .data-row:hover td { background: #263244; }
+  .okr-table .data-row td:first-child { color: #e2e8f0; font-weight: 500; }
+  .okr-table .col-prev { color: #64748b; }
+  .okr-table .col-pct { font-weight: 600; }
+  .pct-good { color: #6ee7b7; }
+  .pct-warn { color: #fbbf24; }
+  .pct-bad { color: #fca5a5; }
+  .no-data { color: #64748b; }
+</style>
+</head>
+<body>
+
+<a href="../" class="back-link">&larr; Volver (Tableros Marketing Sellers)</a>
+
+<div class="header">
+  <div>
+    <h1>OKR <span>Marketing</span></h1>
+    <div class="subtitle">Actualizado: <span id="date"></span></div>
+  </div>
+  <div class="controls">
+    <div class="pill-group" id="country-pills"></div>
+  </div>
+</div>
+
+<div class="kpi-row" id="kpi-row"></div>
+
+<div class="charts-row">
+  <div class="chart-section">
+    <div class="chart-title">Leads Asignados mes a mes</div>
+    <div class="chart-wrap"><canvas id="chart-leads"></canvas></div>
+  </div>
+  <div class="chart-section">
+    <div class="chart-title">Inversi&oacute;n mes a mes</div>
+    <div class="chart-wrap"><canvas id="chart-invest"></canvas></div>
+  </div>
+  <div class="chart-section">
+    <div class="chart-title">CPLA mes a mes</div>
+    <div class="chart-wrap"><canvas id="chart-cpla"></canvas></div>
+  </div>
+</div>
+
+<div class="table-container" id="table-container"></div>
+
+<script>
+Chart.register(ChartDataLabels);
+let DATA, chartInvest, chartLeads, chartCpla;
+let country = 'CO';
+
+function fmt(n) {
+  if (n == null || isNaN(n)) return '-';
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (Math.abs(n) >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return n.toLocaleString('es-CO');
+}
+function fmtInt(n) {
+  if (n == null || isNaN(n)) return '-';
+  return n.toLocaleString('es-CO');
+}
+function fmtPct(n,d) {
+  if (!d || !n && n !== 0) return '-';
+  return Math.round(n/d*100) + '%';
+}
+function yoyPct(cur, prev) {
+  if (!prev || !cur && cur !== 0) return null;
+  return Math.round((cur - prev) / prev * 100);
+}
+function deltaClass(pct, invert) {
+  if (pct == null) return 'neutral';
+  const p = invert ? -pct : pct;
+  return p >= 0 ? 'up' : 'down';
+}
+function deltaStr(pct) {
+  if (pct == null) return '';
+  return (pct >= 0 ? '+' : '') + pct + '%';
+}
+function deltaTag(pct, invert) {
+  return `<span class="kpi-delta ${deltaClass(pct, invert)}" style="font-size:11px">${deltaStr(pct)}</span>`;
+}
+
+function render() {
+  const C = DATA[country];
+  const cy = DATA.current_year;
+  const T = C.tables;
+
+  // KPI cards
+  const ar = T.annual[0];
+  const al = ar.leads;
+  const leadsYTD = al.actual || 0, leadsPrev = al.prev || 0;
+  const invYTD = ar.invest.actual || 0, invPrev = ar.invest.prev || 0;
+  const cplaYTD = leadsYTD ? invYTD / leadsYTD : null;
+  const cplaPrev = leadsPrev ? invPrev / leadsPrev : null;
+  const leadsYoY = yoyPct(leadsYTD, leadsPrev);
+  const invYoY = yoyPct(invYTD, invPrev);
+  const cplaYoY = (cplaYTD != null && cplaPrev) ? yoyPct(cplaYTD, cplaPrev) : null;
+
+  document.getElementById('kpi-row').innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Leads Asignados YTD</div>
+      <div class="kpi-value">${fmtInt(leadsYTD)} <span style="font-size:16px;color:${leadsYTD >= leadsPrev ? '#6ee7b7' : '#fca5a5'}">${leadsYTD >= leadsPrev ? '+' : '-'}${fmtInt(Math.abs(leadsYTD - leadsPrev))}</span></div>
+      <div class="kpi-meta">Meta al d&iacute;a: ${fmtInt(al.mtd)} &middot; ${fmtPct(leadsYTD, al.mtd)}</div>
+      <div class="kpi-delta ${deltaClass(leadsYoY)}">${deltaStr(leadsYoY)} YoY</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Inversi&oacute;n YTD</div>
+      <div class="kpi-value">$${fmt(invYTD)} <span style="font-size:16px;color:${invYTD <= invPrev ? '#6ee7b7' : '#fca5a5'}">${invYTD <= invPrev ? '-' : '+'}$${fmt(Math.abs(invYTD - invPrev))}</span></div>
+      <div class="kpi-meta">Mismo per&iacute;odo ${cy-1}: $${fmt(invPrev)}</div>
+      <div class="kpi-delta ${deltaClass(invYoY)}">${deltaStr(invYoY)} YoY</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">CPLA YTD</div>
+      <div class="kpi-value">$${cplaYTD != null ? fmt(Math.round(cplaYTD)) : '-'}</div>
+      <div class="kpi-meta">${cy-1}: $${cplaPrev ? fmt(Math.round(cplaPrev)) : '-'}</div>
+      <div class="kpi-delta ${deltaClass(cplaYoY, true)}">${deltaStr(cplaYoY)} YoY</div>
+    </div>`;
+
+  // --- Unified table ---
+  const sections = [
+    { title: 'Anual', rows: T.annual },
+    { title: 'Trimestres', rows: T.quarters },
+    { title: 'Meses', rows: T.months },
+    { title: 'Semanas', rows: T.weeks },
+    { title: 'Ciclos', rows: T.cycles }
+  ];
+
+  let thead = `<tr>
+    <th rowspan="2"></th>
+    <th colspan="6" class="grp-header grp-asig">Asignados</th>
+    <th colspan="3" class="grp-header grp-header-inv grp-inv">Inversi&oacute;n</th>
+    <th colspan="3" class="grp-header grp-header-cpla grp-cpla">CPLA</th>
+  </tr><tr>
+    <th class="grp-asig">Meta</th><th>Meta fecha</th><th>${cy}</th><th>${cy-1}</th><th>Meta%</th><th>YoY</th>
+    <th class="grp-inv">${cy}</th><th>${cy-1}</th><th>YoY</th>
+    <th class="grp-cpla">${cy}</th><th>${cy-1}</th><th>YoY</th>
+  </tr>`;
+
+  let tbody = '';
+  for (const sec of sections) {
+    if (!sec.rows.length) continue;
+    tbody += `<tr class="section-row"><td colspan="13">${sec.title}</td></tr>`;
+    for (const r of sec.rows) {
+      const l = r.leads || {};
+      const la = l.actual || 0, lm = l.meta || 0, lmtd = l.mtd || 0, lp = l.prev || 0;
+      const lPct = lmtd ? Math.round(la / lmtd * 100) : null;
+      const lPctCls = lPct == null ? '' : (lPct >= 95 ? 'pct-good' : lPct >= 80 ? 'pct-warn' : 'pct-bad');
+      const lYoY = yoyPct(la, lp);
+
+      const ia = r.invest.actual || 0, ip = r.invest.prev || 0;
+      const iYoY = yoyPct(ia, ip);
+
+      const ca = la ? Math.round(ia / la) : null;
+      const cp = lp ? Math.round(ip / lp) : null;
+      const cYoY = (ca != null && cp) ? yoyPct(ca, cp) : null;
+
+      tbody += `<tr class="data-row">
+        <td>${r.label}</td>
+        <td class="grp-asig">${fmtInt(lm)}</td><td>${fmtInt(lmtd)}</td><td>${fmtInt(la)}</td><td class="col-prev">${fmtInt(lp)}</td>
+        <td class="col-pct ${lPctCls}">${lPct != null ? lPct + '%' : '-'}</td>
+        <td>${deltaTag(lYoY)}</td>
+        <td class="grp-inv">${ia ? '$' + fmt(ia) : '-'}</td><td class="col-prev">${ip ? '$' + fmt(ip) : '-'}</td>
+        <td>${deltaTag(iYoY)}</td>
+        <td class="grp-cpla">${ca != null ? '$' + fmt(ca) : '-'}</td><td class="col-prev">${cp != null ? '$' + fmt(cp) : '-'}</td>
+        <td>${deltaTag(cYoY, true)}</td>
+      </tr>`;
+    }
+  }
+
+  document.getElementById('table-container').innerHTML =
+    `<table class="okr-table"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+
+  // Charts
+  function buildYoYChart(canvasId, existingChart, labelsCur, labelsPrev, labelsYoY, prefix, invertColors) {
+    if (existingChart) existingChart.destroy();
+    const labels = T.months.map(m => m.label);
+    return new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: String(cy - 1), data: labelsPrev, backgroundColor: '#334155', borderRadius: 4, barPercentage: 0.7, order: 1, datalabels: {
+              display: ctx => ctx.dataset.data[ctx.dataIndex] != null,
+              color: '#94a3b8', font: { size: 10 }, anchor: 'end', align: 'start', offset: -2,
+              formatter: v => prefix + fmt(v)
+          }},
+          { label: String(cy), data: labelsCur, backgroundColor: '#818cf8', borderRadius: 4, barPercentage: 0.7, order: 2, datalabels: {
+              display: ctx => ctx.dataset.data[ctx.dataIndex] != null,
+              color: '#c7d2fe', font: { size: 10 }, anchor: 'end', align: 'start', offset: -2,
+              formatter: v => prefix + fmt(v)
+          }},
+          {
+            label: 'Dif % YoY', data: labelsYoY, type: 'line',
+            borderColor: '#94a3b8', backgroundColor: 'rgba(148,163,184,0.1)',
+            pointBackgroundColor: ctx => { const v = ctx.dataset.data[ctx.dataIndex] || 0; const pos = invertColors ? v <= 0 : v >= 0; return pos ? '#6ee7b7' : '#fca5a5'; },
+            pointRadius: 5, borderWidth: 2, tension: 0.3,
+            yAxisID: 'yPct', order: 0,
+            segment: { borderColor: ctx => { const v = ctx.p1.parsed.y; const pos = invertColors ? v <= 0 : v >= 0; return pos ? '#6ee7b7' : '#fca5a5'; } },
+            datalabels: {
+              display: ctx => ctx.dataset.data[ctx.dataIndex] != null,
+              color: ctx => { const v = ctx.dataset.data[ctx.dataIndex] || 0; const pos = invertColors ? v <= 0 : v >= 0; return pos ? '#6ee7b7' : '#fca5a5'; },
+              font: { size: 11, weight: 600 }, anchor: 'end', align: 'top', offset: 4,
+              formatter: v => (v >= 0 ? '+' : '') + v + '%'
+            }
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: true, aspectRatio: 10/7,
+        plugins: {
+          legend: { labels: { color: '#94a3b8', font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                if (ctx.dataset.yAxisID === 'yPct') return ctx.dataset.label + ': ' + (ctx.raw >= 0 ? '+' : '') + ctx.raw + '%';
+                return ctx.dataset.label + ': ' + prefix + fmt(ctx.raw);
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#64748b' }, grid: { display: false } },
+          y: { position: 'left', ticks: { color: '#64748b', callback: v => prefix + fmt(v) }, grid: { color: '#1e293b' } },
+          yPct: { position: 'right', ticks: { color: '#fbbf24', callback: v => v + '%' }, grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  // Prepare chart data from monthly rows
+  const cInvCur = [], cInvPrev = [], cInvYoY = [];
+  const cLdCur = [], cLdPrev = [], cLdYoY = [];
+  const cCplaCur = [], cCplaPrev = [], cCplaYoY = [];
+  for (const m of T.months) {
+    const ic = m.invest.actual, ip = m.invest.prev || null;
+    cInvCur.push(ic); cInvPrev.push(ip);
+    cInvYoY.push(ic != null && ip ? Math.round((ic - ip) / ip * 100) : null);
+
+    const la = m.leads.actual || null, lp = m.leads.prev || null;
+    cLdCur.push(la); cLdPrev.push(lp);
+    cLdYoY.push(la != null && lp ? Math.round((la - lp) / lp * 100) : null);
+
+    const cc = la ? Math.round(ic / la) : null;
+    const cp = lp && ip ? Math.round(ip / lp) : null;
+    cCplaCur.push(cc); cCplaPrev.push(cp);
+    cCplaYoY.push(cc != null && cp ? Math.round((cc - cp) / cp * 100) : null);
+  }
+
+  chartLeads = buildYoYChart('chart-leads', chartLeads, cLdCur, cLdPrev, cLdYoY, '', false);
+  chartInvest = buildYoYChart('chart-invest', chartInvest, cInvCur, cInvPrev, cInvYoY, '$', true);
+  chartCpla = buildYoYChart('chart-cpla', chartCpla, cCplaCur, cCplaPrev, cCplaYoY, '$', true);
+}
+
+async function init() {
+  const resp = await fetch('data.json');
+  DATA = await resp.json();
+  document.getElementById('date').textContent = DATA.updated;
+
+  const countries = ['CO', 'MX'];
+  const pills = document.getElementById('country-pills');
+  countries.forEach(c => {
+    const id = 'c-' + c;
+    const inp = document.createElement('input');
+    inp.type = 'radio'; inp.name = 'country'; inp.id = id; inp.value = c;
+    if (c === country) inp.checked = true;
+    inp.addEventListener('change', () => { country = c; render(); });
+    const lbl = document.createElement('label');
+    lbl.htmlFor = id; lbl.textContent = c;
+    pills.appendChild(inp);
+    pills.appendChild(lbl);
+  });
+
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
