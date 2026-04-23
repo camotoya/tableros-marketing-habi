@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
 <title>Funnel Sellers</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -30,31 +31,49 @@
   .table-container { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow-x: auto; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
   thead th { background: #334155; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 12px 14px; text-align: right; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
-  thead th:first-child { text-align: left; min-width: 200px; position: sticky; left: 0; z-index: 3; background: #334155; border-right: 2px solid #4b5563; }
+  thead th:first-child { min-width: 36px; width: 36px; padding: 12px 0; text-align: center; position: sticky; left: 0; z-index: 4; background: #334155; }
+  thead th:nth-child(2) { text-align: left; min-width: 220px; position: sticky; left: 36px; z-index: 3; background: #334155; border-right: 2px solid #4b5563; }
   thead th.in-progress { font-style: italic; color: #fbbf24; }
   thead th.in-progress::after { content: '*'; margin-left: 3px; }
   tbody td { padding: 10px 14px; text-align: right; border-top: 1px solid #283548; white-space: nowrap; }
-  tbody td:first-child { text-align: left; font-weight: 500; color: #cbd5e1; position: sticky; left: 0; z-index: 1; background: #1e293b; border-right: 2px solid #4b5563; }
+  tbody td:first-child { min-width: 36px; width: 36px; padding: 10px 0; text-align: center; position: sticky; left: 0; z-index: 2; background: #1e293b; }
+  tbody td:nth-child(2) { text-align: left; font-weight: 500; color: #cbd5e1; position: sticky; left: 36px; z-index: 1; background: #1e293b; border-right: 2px solid #4b5563; }
   tbody tr { background: #1e293b; }
   tbody tr:hover td { background: #263348; }
   tbody tr:hover td:first-child { background: #263348; }
 
   tbody tr.row-total td { font-weight: 700; color: #f8fafc; font-size: 14px; background: #1a2744; }
-  tbody tr.row-total td:first-child { background: #1a2744; }
+  tbody tr.row-total td:first-child, tbody tr.row-total td:nth-child(2) { background: #1a2744; }
   tbody tr.row-stage td { font-weight: 500; font-size: 13px; }
-  tbody tr.row-stage td:first-child { color: #cbd5e1; }
+  tbody tr.row-stage td:nth-child(2) { color: #cbd5e1; }
   tbody tr.row-stage .n { font-weight: 600; color: #e2e8f0; }
   tbody tr.row-stage .p { font-size: 11px; opacity: 0.85; margin-left: 6px; }
   tbody tr.row-sep td { padding: 0; height: 3px; background: #0f172a; border: none; }
-  tbody tr.row-sep td:first-child { background: #0f172a; border-right-color: #0f172a; }
+  tbody tr.row-sep td:first-child, tbody tr.row-sep td:nth-child(2) { background: #0f172a; border-right-color: #0f172a; }
+  tbody tr.row-section td.section-title { padding: 8px 14px; background: #0f172a; color: #818cf8; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; border: none; text-align: left; position: sticky; left: 0; z-index: 2; border-right: 2px solid #0f172a; }
+  tbody tr.row-section td.section-fill { background: #0f172a; border: none; padding: 0; }
 
   .back-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 13px; margin-bottom: 16px; transition: color 0.15s, border-color 0.15s; }
   .back-link:hover { color: #818cf8; border-color: #818cf8; }
 
-  .chart-container { background: #1e293b; border-radius: 10px; border: 1px solid #334155; padding: 18px 20px 10px; margin-top: 16px; }
-  .chart-title { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 8px; }
-  .chart-title .note { text-transform: none; letter-spacing: 0; font-weight: 400; color: #64748b; margin-left: 8px; }
-  .chart-wrap { position: relative; height: 320px; }
+  .help-btn { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #334155; color: #94a3b8; border: none; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 6px; transition: background 0.15s, color 0.15s; vertical-align: middle; padding: 0; line-height: 1; }
+  .help-btn:hover { background: #818cf8; color: #f8fafc; }
+  .help-dialog { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 10px; padding: 24px 28px; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); font-family: inherit; margin: 40px 0 0 40px; }
+  .help-dialog::backdrop { background: rgba(15,23,42,0.75); backdrop-filter: blur(2px); }
+  .help-dialog h3 { color: #f8fafc; font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+  .help-dialog p { font-size: 13px; line-height: 1.55; color: #cbd5e1; margin-bottom: 10px; }
+  .help-dialog p strong { color: #818cf8; font-weight: 600; }
+  .help-dialog .close-btn { margin-top: 14px; background: #334155; color: #e2e8f0; border: none; padding: 7px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: background 0.15s; }
+  .help-dialog .close-btn:hover { background: #4b5563; }
+
+  .quality-charts { display: grid; gap: 10px; margin-top: 10px; }
+  .quality-charts.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .quality-charts.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .quality-charts.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .qc-card { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 10px; min-width: 0; }
+  .qc-title { font-size: 10px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; line-height: 1.3; min-height: 28px; overflow: hidden; }
+  .qc-wrap { position: relative; height: 140px; }
+  .section-heading { color: #f8fafc; font-size: 16px; font-weight: 600; margin: 24px 0 10px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -74,19 +93,19 @@
     </div>
   </div>
   <div class="control-card">
-    <div class="control-label">Vista</div>
+    <div class="control-label">Vista <button type="button" class="help-btn" onclick="document.getElementById('helpVista').showModal()" aria-label="¿Qué significa Events vs Cohort?">?</button></div>
     <div class="filter-bar">
       <label><input type="radio" name="mode" value="evt" checked onchange="onUpdate()"> Events</label>
       <label><input type="radio" name="mode" value="coh" onchange="onUpdate()"> Cohort</label>
     </div>
   </div>
   <div class="control-card">
-    <div class="control-label">Granularidad</div>
+    <div class="control-label">Temporalidad <button type="button" class="help-btn" onclick="document.getElementById('helpGran').showModal()" aria-label="Explicación de temporalidades">?</button></div>
     <select class="granularity" id="granSelect" onchange="onUpdate()">
       <option value="D">Diario</option>
-      <option value="W">Semanal (lun-dom)</option>
+      <option value="W" selected>Semanal (lun-dom)</option>
       <option value="C">Ciclo comercial (mié-mar)</option>
-      <option value="M" selected>Mensual</option>
+      <option value="M">Mensual</option>
       <option value="Q">Trimestral</option>
       <option value="Y">Anual</option>
     </select>
@@ -100,13 +119,128 @@
 </div>
 
 <div class="table-container">
-  <table id="mainTable"><thead><tr><th>Métrica</th></tr></thead><tbody></tbody></table>
+  <table id="funnelTable"><thead><tr><th>Métrica</th></tr></thead><tbody></tbody></table>
 </div>
 
-<div class="chart-container">
-  <div class="chart-title">Conversión desde Registros totales<span class="note">% Calificados y % Asignados oficiales (WBR) sobre Registros. Respeta los filtros de país, fuente, granularidad y modo.</span></div>
-  <div class="chart-wrap"><canvas id="chartConv"></canvas></div>
+<div class="quality-charts cols-3">
+  <div class="qc-card"><div class="qc-title">% Registros con NID / Registros</div><div class="qc-wrap"><canvas id="qcRegNidPct"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title">% Cal MM / Registros</div><div class="qc-wrap"><canvas id="qcCalMmPct"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title">% Cal Inmo / Registros</div><div class="qc-wrap"><canvas id="qcCalInmoPct"></canvas></div></div>
 </div>
+
+<h2 class="section-heading">Control de calidad</h2>
+<div class="table-container">
+  <table id="qualityTable"><thead><tr><th>Métrica</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div class="quality-charts cols-5">
+  <div class="qc-card"><div class="qc-title">Cal MM sin Inmo (violación MM⊆Inmo)</div><div class="qc-wrap"><canvas id="qcNoInmo"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title">Cal MM → Descarte tardío</div><div class="qc-wrap"><canvas id="qcCalMmDesc"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title">Cal MM → Duplicado</div><div class="qc-wrap"><canvas id="qcCalMmDup"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title">Duplicados total</div><div class="qc-wrap"><canvas id="qcDup"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title">Registros incompletos</div><div class="qc-wrap"><canvas id="qcIncomp"></canvas></div></div>
+</div>
+
+<h2 class="section-heading">Antifunnel — estados no calificados por fecha de creación</h2>
+<div class="table-container">
+  <table id="antifunnelTable"><thead><tr><th>Estado</th></tr></thead><tbody></tbody></table>
+</div>
+
+<div class="qc-card" style="margin-top: 12px;">
+  <div class="qc-title" style="font-size: 12px; min-height: 0;">Evolución del % de cada estado / Registros — una línea por estado, orden por total descendente</div>
+  <div style="position: relative; height: 525px;"><canvas id="antifunnelChart"></canvas></div>
+</div>
+
+<dialog id="helpRegistros" class="help-dialog">
+  <h3>Registros</h3>
+  <p>Cantidad total de registros creados en el período (<code>COUNT(*)</code> sobre <code>tabla_inmuebles_general</code>). <strong>Incluye filas sin NID</strong>. Siempre se mide por <code>fecha_creacion</code>, igual en Cohort y Events.</p>
+  <p>Filtra por las 6 fuentes del tablero: WEB, Leadforms, Estudio Inmueble, CRM(CO)/Propiedades(MX), Broker, Comercial.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpRegistrosNid" class="help-dialog">
+  <h3>Registros con NID</h3>
+  <p>Registros que tienen <code>nid</code> de HubSpot. <code>COUNT(DISTINCT nid)</code>. El NID identifica el deal en HubSpot — sin NID el lead no puede avanzar al CRM ni ser asignado.</p>
+  <p>El % mide la tasa de creación correcta de deals. Desde el 2026-03-12 este % cayó drásticamente por un bug del nuevo BB (arreglado 2026-04-22). Post-arreglo debería volver a ~99%.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpCalInmo" class="help-dialog">
+  <h3>Calificados Inmo</h3>
+  <p>Leads que pasaron por el backbone de Inmobiliaria y quedaron calificados. En histórico: primera entrada a <code>state_id = 20</code> (<em>no_gestionado</em>) en <code>habi_db_history_state_real_estate</code>.</p>
+  <p><strong>Cohort</strong>: leads creados en el período que alguna vez calificaron Inmo.<br><strong>Events</strong>: primera calificación Inmo que ocurrió en el período.</p>
+  <p>Este funnel arrancó el <strong>2026-03-12</strong>. Antes de esa fecha el BB Inmo no evaluaba, por eso aparece en ~0%.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpCalMm" class="help-dialog">
+  <h3>Calificados MM</h3>
+  <p>Leads que pasaron por el backbone de Market Maker y quedaron calificados. En histórico: primera entrada a <code>estado_id IN (20, 63)</code> (<em>no_gestionado</em> o <em>sin_pricing_inicial</em>) en la tabla histórica de MM.</p>
+  <p><strong>Cohort</strong>: leads creados en el período que alguna vez calificaron MM.<br><strong>Events</strong>: primera calificación MM que ocurrió en el período.</p>
+  <p>El BB MM fue reemplazado el <strong>2026-03-12</strong>: el DMN nuevo (<code>ibuyer_decision_co.dmn</code>) es más estricto que el anterior.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpCalMmNoInmo" class="help-dialog">
+  <h3>Cal MM sin Inmo (violación MM⊆Inmo)</h3>
+  <p>Regla del funnel: si un lead califica MM, <strong>debería</strong> calificar también Inmo (el buybox MM está contenido dentro del de Inmo). Esta fila mide las violaciones — leads que califican MM pero NUNCA calificaron Inmo.</p>
+  <p>Denominador: <strong>Calificados MM</strong> del período (no registros totales).</p>
+  <p><strong>Ojo</strong>: pre-2026-03-12 el BB Inmo no corría, por lo que esta fila dará ~100% para períodos antiguos (falso positivo esperable). Post-estabilización debería tender a 0 — cualquier valor sostenido arriba de 1-2% es señal de bug del buybox o de orquestación.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpCalMmDup" class="help-dialog">
+  <h3>Cal MM → Duplicado</h3>
+  <p>Leads que pasaron por calificado MM pero hoy están en estado <strong>duplicado</strong> (<code>last_estado_id = 1</code>) — el sistema los marcó como duplicados de otro lead después de haberlos calificado.</p>
+  <p>Denominador: Calificados MM del período.</p>
+  <p><strong>Caveat importante</strong>: este indicador <strong>madura con el tiempo</strong>. Leads recientes aún no tuvieron tiempo de ser marcados duplicados. Los últimos 2-3 meses son provisionales — la cifra real se consolida tras ~60-90 días.</p>
+  <p>Mide calidad del intake / duplicación del CRM, no bug del BB.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpCalMmDesc" class="help-dialog">
+  <h3>Cal MM → Descarte tardío</h3>
+  <p>Leads que pasaron por calificado MM pero hoy están en un estado de <strong>descarte posterior</strong> (precio elevado, fuera de zona, antigüedad, inmueble no habi, revisar dirección, etc.). Estados: <code>3, 10, 16, 33, 38, 55, 56, 61, 64</code>.</p>
+  <p>Denominador: Calificados MM del período.</p>
+  <p>Indica <strong>inconsistencia entre el BB MM y procesos downstream</strong>: el BB calificó pero después otro proceso detectó que no aplicaba. Volumen típicamente bajo (&lt;2%), pero tendencia creciente desde 2026-03-12.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpIncomp" class="help-dialog">
+  <h3>Registros incompletos</h3>
+  <p>Registros cuyo estado actual es <strong>incompleto</strong> (<code>last_estado_id = 7</code>). Leads que nunca completaron los datos mínimos para que el BB los evalúe.</p>
+  <p>Denominador: Registros totales del período.</p>
+  <p>Mide calidad del <strong>formulario de captura</strong>. Muy volátil mes a mes. Ya existe el tablero dedicado <code>incompletos-colombia</code> que analiza este problema en profundidad.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpDup" class="help-dialog">
+  <h3>Duplicados total</h3>
+  <p>Registros cuyo estado actual es <strong>duplicado</strong> (<code>last_estado_id = 1</code>), incluyendo los que nunca calificaron. Versión más amplia del indicador (A).</p>
+  <p>Denominador: Registros totales del período.</p>
+  <p>Mide duplicación general del intake. <strong>Madura con el tiempo</strong> igual que A — los últimos meses son provisionales.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpGran" class="help-dialog">
+  <h3>Temporalidad</h3>
+  <p><strong>Día</strong>: un día calendario. Últimos 25 días.</p>
+  <p><strong>Semana</strong>: de <strong>lunes a domingo</strong> (estándar ISO 8601, también llamada "ISO week"). Últimas 25 semanas.</p>
+  <p><strong>Ciclo comercial</strong>: miércoles a martes. Últimos 25 ciclos.</p>
+  <p><strong>Mes</strong>: mes calendario. Últimos 25 meses.</p>
+  <p><strong>Trimestre</strong>: trimestre calendario. Últimos 25.</p>
+  <p><strong>Año</strong>: año calendario. Historia completa.</p>
+  <p>El día de hoy no se incluye en ninguna granularidad — datos parciales del día actual quedan fuera. El período en curso (ej. la semana o mes actual) sí aparece pero con datos parciales, marcado con asterisco e itálica en el encabezado.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
+<dialog id="helpVista" class="help-dialog">
+  <h3>Cohort vs Events</h3>
+  <p><strong>Cohort</strong>: todo agrupado por <strong>fecha de creación</strong> del lead. Los calificados del período son los leads creados en ese período que, en algún momento, llegaron a un estado calificado — sin importar cuándo ocurrió esa calificación.</p>
+  <p><strong>Events</strong>: los calificados agrupados por la <strong>fecha del evento</strong>, es decir, cuándo ocurrió la primera entrada al estado calificado. Un lead creado en enero que calificó en marzo cuenta en marzo, no en enero.</p>
+  <p>Registros y Registros con NID no cambian entre modos — siempre van por fecha de creación.</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
 
 <script>
 // Fuente IDs por país, en el orden solicitado:
@@ -136,6 +270,7 @@ const GRAN_LABELS = { D:'Diario', W:'Semanal', C:'Ciclo comercial', M:'Mensual',
 const SHOW_COUNT = 20;
 
 let RAW_DATA = [];
+let ANTIFUNNEL_DATA = [];
 let LABEL_CACHE = {}; // {"Colombia:3": "WEB", ...}
 
 function getCountry() { return document.querySelector('input[name="country"]:checked').value; }
@@ -214,68 +349,101 @@ function isCurrentPeriod(p, g) {
   return false;
 }
 
-const STAGE_KEYS = ['cal','asg','cit','vis','apr','acp','cie'];
-const STAGE_LABELS = {
-  cal: 'Calificados (No gestionado + Sin pricing inicial)',
-  asg: 'Primer asignación',
-  cit: 'Cita agendada',
-  vis: 'Visita efectuada',
-  apr: 'Aprobado',
-  acp: 'Aceptó oferta',
-  cie: 'Cierre comprado'
-};
-
-function getMode() { return document.querySelector('input[name="mode"]:checked').value; }
-
-// Claves a sumar según modo: cohort usa cal/asg/..., events usa e_cal/e_asg/...
-function stageField(key, mode) { return mode === 'evt' ? 'e_' + key : key; }
-
 function aggregate(gran, country, selIds) {
   const filtered = RAW_DATA.filter(r => r.g === gran && r.c === country && selIds.includes(r.f));
   const periodSet = {};
   filtered.forEach(r => {
-    if (!periodSet[r.p]) {
-      periodSet[r.p] = { p: r.p, tr: 0, t: 0, oas: 0, e_oas: 0 };
-      STAGE_KEYS.forEach(k => { periodSet[r.p][k] = 0; periodSet[r.p]['e_'+k] = 0; });
-    }
+    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, tr: 0, t: 0, cal_mm: 0, cal_inmo: 0, cal_mm_no_inmo: 0, cal_mm_dup: 0, cal_mm_desc: 0, incomp: 0, dup: 0, e_cal_mm: 0, e_cal_inmo: 0, e_cal_mm_no_inmo: 0 };
     periodSet[r.p].tr += (r.tr || 0);
-    periodSet[r.p].t += r.t;
-    periodSet[r.p].oas += (r.oas || 0);
-    periodSet[r.p].e_oas += (r.e_oas || 0);
-    STAGE_KEYS.forEach(k => {
-      periodSet[r.p][k]     += (r[k] || 0);
-      periodSet[r.p]['e_'+k] += (r['e_'+k] || 0);
-    });
+    periodSet[r.p].t += (r.t || 0);
+    periodSet[r.p].cal_mm += (r.cal_mm || 0);
+    periodSet[r.p].cal_inmo += (r.cal_inmo || 0);
+    periodSet[r.p].cal_mm_no_inmo += (r.cal_mm_no_inmo || 0);
+    periodSet[r.p].cal_mm_dup += (r.cal_mm_dup || 0);
+    periodSet[r.p].cal_mm_desc += (r.cal_mm_desc || 0);
+    periodSet[r.p].incomp += (r.incomp || 0);
+    periodSet[r.p].dup += (r.dup || 0);
+    periodSet[r.p].e_cal_mm += (r.e_cal_mm || 0);
+    periodSet[r.p].e_cal_inmo += (r.e_cal_inmo || 0);
+    periodSet[r.p].e_cal_mm_no_inmo += (r.e_cal_mm_no_inmo || 0);
   });
   return Object.values(periodSet).sort((a, b) => a.p.localeCompare(b.p));
 }
 
-let CHART_INSTANCE = null;
-function renderChart(rows, gran, mode) {
-  const ctx = document.getElementById('chartConv');
-  if (!ctx) return;
-  const calField = mode === 'evt' ? 'e_cal' : 'cal';
-  const oasField = mode === 'evt' ? 'e_oas' : 'oas';
-  const labels = rows.map(r => formatPeriod(r.p, gran));
-  const pctCal = rows.map(r => r.tr > 0 ? (r[calField] / r.tr) * 100 : 0);
-  const pctOas = rows.map(r => r.tr > 0 ? (r[oasField] / r.tr) * 100 : 0);
+function getMode() { return document.querySelector('input[name="mode"]:checked').value; }
 
-  if (CHART_INSTANCE) CHART_INSTANCE.destroy();
-  CHART_INSTANCE = new Chart(ctx, {
+function helpCell(id) {
+  return `<td><button type="button" class="help-btn" onclick="document.getElementById('${id}').showModal()" aria-label="Ayuda">?</button></td>`;
+}
+
+// Helper: celdas "valor + %" con heatmap. invert=true → alto=rojo, bajo=verde (para métricas negativas).
+function heatCells(values, denominators, invert) {
+  const pcts = values.map((v, i) => denominators[i] > 0 ? v / denominators[i] * 100 : 0);
+  const min = Math.min(...pcts), max = Math.max(...pcts), range = max - min || 1;
+  return values.map((v, i) => {
+    let ratio = (pcts[i] - min) / range;
+    if (invert) ratio = 1 - ratio;
+    const rc = Math.round(248 - ratio * 196);
+    const gc = Math.round(52 + ratio * 159);
+    const bc = Math.round(52 + ratio * 101);
+    const pctStr = pcts[i] >= 10 ? pcts[i].toFixed(1) : pcts[i].toFixed(2);
+    return `<td><span class="n">${fmt(v)}</span><span class="p" style="color:rgb(${rc},${gc},${bc})">${pctStr}%</span></td>`;
+  }).join('');
+}
+
+function renderPctRow(label, values, denominators, helpId) {
+  return `<tr class="row-stage">${helpCell(helpId)}<td>${label}</td>${heatCells(values, denominators, false)}</tr>`;
+}
+
+function fmt(n) { return n.toLocaleString('es-MX'); }
+
+let ANTIFUNNEL_CHART = null;
+function renderAntifunnelChart(periods, gran, trs) {
+  const ctx = document.getElementById('antifunnelChart');
+  if (!ctx) return;
+  const country = getCountry();
+  const selIds = getSelFuentes();
+  const periodSet = new Set(periods);
+
+  const byKey = {};
+  ANTIFUNNEL_DATA.forEach(r => {
+    if (r.g !== gran || r.c !== country || !selIds.includes(r.f) || !periodSet.has(r.p)) return;
+    const k = r.state_id + '|' + r.p;
+    if (!byKey[k]) byKey[k] = { state_id: r.state_id, state_name: r.state_name, p: r.p, n: 0 };
+    byKey[k].n += r.n;
+  });
+  const byState = {};
+  Object.values(byKey).forEach(r => {
+    if (!byState[r.state_id]) byState[r.state_id] = { state_id: r.state_id, state_name: r.state_name, total: 0, perP: {} };
+    byState[r.state_id].total += r.n;
+    byState[r.state_id].perP[r.p] = r.n;
+  });
+  const states = Object.values(byState).sort((a, b) => b.total - a.total);
+
+  if (ANTIFUNNEL_CHART) { ANTIFUNNEL_CHART.destroy(); ANTIFUNNEL_CHART = null; }
+  if (!states.length) return;
+
+  const PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#38bdf8','#818cf8','#4ade80','#facc15','#e879f9','#06b6d4','#f59e0b','#10b981','#c084fc','#fb7185','#22d3ee','#eab308','#84cc16'];
+  const labels = periods.map(p => formatPeriod(p, gran));
+  const datasets = states.map((s, i) => {
+    const color = PALETTE[i % PALETTE.length];
+    const pcts = periods.map((p, j) => trs[j] > 0 ? (s.perP[p] || 0) / trs[j] * 100 : 0);
+    return { label: s.state_name, data: pcts, borderColor: color, backgroundColor: color + '22', tension: 0.3, pointRadius: 2, pointHoverRadius: 4, borderWidth: 2 };
+  });
+
+  ANTIFUNNEL_CHART = new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [
-      { label: '% Calificados / Registros', data: pctCal, borderColor: '#34d399', backgroundColor: '#34d39922', tension: 0.3, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 },
-      { label: '% Asignados (oficial WBR) / Registros', data: pctOas, borderColor: '#818cf8', backgroundColor: '#818cf822', tension: 0.3, pointRadius: 3, pointHoverRadius: 5, borderWidth: 2 }
-    ]},
+    data: { labels, datasets },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'nearest', axis: 'xy', intersect: false },
       plugins: {
-        legend: { labels: { color: '#cbd5e1', usePointStyle: true, padding: 16 } },
+        legend: { labels: { color: '#cbd5e1', font: { size: 11 }, usePointStyle: true, padding: 10, boxWidth: 10 }, position: 'bottom' },
         tooltip: {
-          backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1, titleColor: '#f8fafc', bodyColor: '#cbd5e1',
-          callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%' }
+          mode: 'nearest', axis: 'xy', intersect: false,
+          backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
+          titleColor: '#f8fafc', bodyColor: '#cbd5e1',
+          callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' }
         }
       },
       scales: {
@@ -286,7 +454,96 @@ function renderChart(rows, gran, mode) {
   });
 }
 
-function fmt(n) { return n.toLocaleString('es-MX'); }
+function renderAntifunnel(periods, gran, trs) {
+  const country = getCountry();
+  const selIds = getSelFuentes();
+  const pFmt = p => formatPeriod(p, gran);
+  const periodSet = new Set(periods);
+
+  const byKey = {};
+  ANTIFUNNEL_DATA.forEach(r => {
+    if (r.g !== gran || r.c !== country || !selIds.includes(r.f) || !periodSet.has(r.p)) return;
+    const k = r.state_id + '|' + r.p;
+    if (!byKey[k]) byKey[k] = { state_id: r.state_id, state_name: r.state_name, p: r.p, n: 0 };
+    byKey[k].n += r.n;
+  });
+
+  const byState = {};
+  Object.values(byKey).forEach(r => {
+    if (!byState[r.state_id]) byState[r.state_id] = { state_id: r.state_id, state_name: r.state_name, total: 0, perP: {} };
+    byState[r.state_id].total += r.n;
+    byState[r.state_id].perP[r.p] = r.n;
+  });
+
+  const states = Object.values(byState).sort((a, b) => b.total - a.total);
+
+  const thead = document.querySelector('#antifunnelTable thead tr');
+  const tbody = document.querySelector('#antifunnelTable tbody');
+
+  if (!states.length) {
+    thead.innerHTML = '<th></th><th>Estado</th>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:#64748b">Sin datos</td></tr>';
+    return;
+  }
+
+  thead.innerHTML = '<th></th><th>Estado</th>' + periods.map(p => {
+    const cls = isCurrentPeriod(p, gran) ? ' class="in-progress"' : '';
+    return `<th${cls}>${pFmt(p)}</th>`;
+  }).join('');
+
+  let tb = '';
+  states.forEach(s => {
+    const values = periods.map(p => s.perP[p] || 0);
+    tb += `<tr class="row-stage"><td></td><td>${s.state_name}</td>${heatCells(values, trs, true)}</tr>`;
+  });
+  tbody.innerHTML = tb;
+
+}
+
+const QC_CHARTS = {};
+function clearQualityCharts() {
+  Object.keys(QC_CHARTS).forEach(id => { QC_CHARTS[id].destroy(); delete QC_CHARTS[id]; });
+}
+function renderQualityChart(canvasId, label, color, values, denominators, labels) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  const pcts = values.map((v, i) => denominators[i] > 0 ? v / denominators[i] * 100 : 0);
+  const shown = pcts.filter(v => v > 0);
+  let yMin = 0, yMax;
+  if (shown.length) {
+    const lo = Math.min(...shown), hi = Math.max(...shown);
+    const range = Math.max(hi - lo, 1);
+    const pad = range * 0.25;
+    yMin = Math.max(0, Math.floor((lo - pad) / 2) * 2);
+    yMax = Math.ceil((hi + pad) / 2) * 2;
+  }
+
+  if (QC_CHARTS[canvasId]) QC_CHARTS[canvasId].destroy();
+  QC_CHARTS[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{
+      label, data: pcts,
+      borderColor: color, backgroundColor: color + '22',
+      tension: 0.3, pointRadius: 2, pointHoverRadius: 4, borderWidth: 2, fill: true
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
+          titleColor: '#f8fafc', bodyColor: '#cbd5e1',
+          callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: '#1e293b' } },
+        y: { ticks: { color: '#64748b', font: { size: 9 }, callback: v => v + '%' }, grid: { color: '#1e293b' }, min: yMin, max: yMax }
+      }
+    }
+  });
+}
 
 function onUpdate() {
   const sel = getSelFuentes();
@@ -294,101 +551,108 @@ function onUpdate() {
   const fuentes = FUENTES_BY_COUNTRY[country];
   document.getElementById('chkAll').checked = sel.length === fuentes.length;
   if (!sel.length) {
-    document.querySelector('#mainTable tbody').innerHTML = '<tr><td colspan="22" style="text-align:center;padding:40px;color:#64748b">Selecciona al menos una fuente</td></tr>';
+    document.querySelector('#funnelTable tbody').innerHTML = '<tr><td colspan="22" style="text-align:center;padding:40px;color:#64748b">Selecciona al menos una fuente</td></tr>';
+    document.querySelector('#qualityTable tbody').innerHTML = '';
+    document.querySelector('#antifunnelTable thead tr').innerHTML = '<th></th><th>Estado</th>';
+    document.querySelector('#antifunnelTable tbody').innerHTML = '';
+    if (ANTIFUNNEL_CHART) { ANTIFUNNEL_CHART.destroy(); ANTIFUNNEL_CHART = null; }
+    clearQualityCharts();
     return;
   }
   const g = getGran();
   let rows = aggregate(g, country, sel);
-  // Para D/W/C/Q mostramos últimos SHOW_COUNT, para M/Y mostramos todo lo disponible al final
-  if (g === 'Y') { rows = rows; } else { rows = rows.slice(-SHOW_COUNT); }
+  if (g !== 'Y') rows = rows.slice(-SHOW_COUNT);
   render(rows, g);
-  renderChart(rows, g, getMode());
 }
 
 function render(rows, gran) {
   const periods = rows.map(r => r.p);
   const pFmt = p => formatPeriod(p, gran);
 
+  const funnelThead = document.querySelector('#funnelTable thead tr');
+  const funnelTbody = document.querySelector('#funnelTable tbody');
+  const qualityThead = document.querySelector('#qualityTable thead tr');
+  const qualityTbody = document.querySelector('#qualityTable tbody');
+
   if (!periods.length) {
-    document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>';
-    document.querySelector('#mainTable tbody').innerHTML = '<tr><td colspan="2" style="text-align:center;padding:40px;color:#64748b">Sin datos para esta combinación</td></tr>';
+    funnelThead.innerHTML = '<th></th><th>Métrica</th>';
+    funnelTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:#64748b">Sin datos para esta combinación</td></tr>';
+    qualityThead.innerHTML = '<th></th><th>Métrica</th>';
+    qualityTbody.innerHTML = '';
+    clearQualityCharts();
     return;
   }
 
-  const cs = periods.length + 1;
-  document.querySelector('#mainTable thead tr').innerHTML = '<th>Métrica</th>' + periods.map(p => {
+  const headerCells = '<th></th><th>Métrica</th>' + periods.map(p => {
     const cls = isCurrentPeriod(p, gran) ? ' class="in-progress"' : '';
     const title = isCurrentPeriod(p, gran) ? ' title="Período en curso — datos parciales"' : '';
     return `<th${cls}${title}>${pFmt(p)}</th>`;
   }).join('');
+  funnelThead.innerHTML = headerCells;
+  qualityThead.innerHTML = headerCells;
 
-  let tb = '';
+  const sortedRows = periods.map(p => rows.find(x => x.p === p));
+  const trs = sortedRows.map(r => r.tr);
 
-  // Fila 1: Registros — todas las filas (incluyendo nid NULL)
-  tb += `<tr class="row-total"><td>Registros</td>` + periods.map(p => {
+  const mode = getMode();
+  const inmoField       = mode === 'evt' ? 'e_cal_inmo'       : 'cal_inmo';
+  const mmField         = mode === 'evt' ? 'e_cal_mm'         : 'cal_mm';
+  const mmNoInmoField   = mode === 'evt' ? 'e_cal_mm_no_inmo' : 'cal_mm_no_inmo';
+  const mmVals = sortedRows.map(r => r[mmField]);
+  const cohortMmVals = sortedRows.map(r => r.cal_mm);
+
+  // Tabla 1: Funnel y calificación
+  let funnelTb = '';
+  funnelTb += `<tr class="row-total">${helpCell('helpRegistros')}<td>Registros</td>` + periods.map(p => {
     const r = rows.find(x => x.p === p);
     return `<td>${fmt(r.tr)}</td>`;
   }).join('') + '</tr>';
+  funnelTb += renderPctRow('Registros con NID', sortedRows.map(r => r.t), trs, 'helpRegistrosNid');
+  funnelTb += renderPctRow('Calificados Inmo', sortedRows.map(r => r[inmoField]), trs, 'helpCalInmo');
+  funnelTb += renderPctRow('Calificados MM', sortedRows.map(r => r[mmField]), trs, 'helpCalMm');
+  funnelTbody.innerHTML = funnelTb;
 
-  // Fila 2: Registros con NID — solo nids únicos, con % vs Registros
-  const nidPcts = periods.map(p => { const r = rows.find(x => x.p === p); return r.tr > 0 ? r.t / r.tr * 100 : 0; });
-  const nidPctMin = Math.min(...nidPcts);
-  const nidPctMax = Math.max(...nidPcts);
-  const nidPctRange = nidPctMax - nidPctMin || 1;
-  tb += `<tr class="row-stage"><td>Registros con NID</td>` + periods.map((p, i) => {
-    const r = rows.find(x => x.p === p);
-    const pct = nidPcts[i];
-    const ratio = (pct - nidPctMin) / nidPctRange;
-    const rc = Math.round(248 - ratio * 196);
-    const gc = Math.round(52 + ratio * 159);
-    const bc = Math.round(52 + ratio * 101);
-    return `<td><span class="n">${fmt(r.t)}</span><span class="p" style="color:rgb(${rc},${gc},${bc})">${pct.toFixed(1)}%</span></td>`;
-  }).join('') + '</tr>';
+  // Tabla 2: Control de calidad
+  let qualityTb = '';
+  qualityTb += renderPctRow('Cal MM sin Inmo (violación MM⊆Inmo)', sortedRows.map(r => r[mmNoInmoField]), mmVals, 'helpCalMmNoInmo');
+  qualityTb += renderPctRow('Cal MM → Descarte tardío', sortedRows.map(r => r.cal_mm_desc), cohortMmVals, 'helpCalMmDesc');
+  qualityTb += renderPctRow('Cal MM → Duplicado', sortedRows.map(r => r.cal_mm_dup), cohortMmVals, 'helpCalMmDup');
+  qualityTb += renderPctRow('Duplicados total', sortedRows.map(r => r.dup), trs, 'helpDup');
+  qualityTb += renderPctRow('Registros incompletos', sortedRows.map(r => r.incomp), trs, 'helpIncomp');
+  qualityTbody.innerHTML = qualityTb;
 
-  tb += `<tr class="row-sep"><td colspan="${cs}"></td></tr>`;
+  renderAntifunnel(periods, gran, trs);
+  renderAntifunnelChart(periods, gran, trs);
 
-  // Stages: cada uno muestra "count (%)" con heatmap en el %
-  // El % siempre se calcula contra Registros (t) del mismo período, en ambos modos.
-  const mode = getMode();
-  STAGE_KEYS.forEach(key => {
-    const field = stageField(key, mode);
-    const pctValues = periods.map(p => {
-      const r = rows.find(x => x.p === p);
-      return r.t > 0 ? r[field] / r.t * 100 : 0;
-    });
-    const pctMin = Math.min(...pctValues);
-    const pctMax = Math.max(...pctValues);
-    const pctRange = pctMax - pctMin || 1;
+  // Scroll al extremo derecho en todas las tablas
+  document.querySelectorAll('.table-container').forEach(c => { c.scrollLeft = c.scrollWidth; });
 
-    tb += `<tr class="row-stage"><td>${STAGE_LABELS[key]}</td>` + periods.map((p, i) => {
-      const r = rows.find(x => x.p === p);
-      const v = r[field] || 0;
-      const pct = pctValues[i];
-      const ratio = (pct - pctMin) / pctRange;
-      const rc = Math.round(248 - ratio * 196);
-      const gc = Math.round(52 + ratio * 159);
-      const bc = Math.round(52 + ratio * 101);
-      const pctStr = pct >= 10 ? pct.toFixed(1) : pct.toFixed(2);
-      return `<td><span class="n">${fmt(v)}</span><span class="p" style="color:rgb(${rc},${gc},${bc})">${pctStr}%</span></td>`;
-    }).join('') + '</tr>';
-  });
-
-  document.querySelector('#mainTable tbody').innerHTML = tb;
+  // Gráficas de control de calidad (evolución del % por período)
+  const chartLabels = periods.map(p => formatPeriod(p, gran));
+  renderQualityChart('qcNoInmo',     'Cal MM sin Inmo',      '#f87171', sortedRows.map(r => r[mmNoInmoField]), mmVals,        chartLabels);
+  renderQualityChart('qcCalMmDesc',  'Cal MM → Descarte',    '#fbbf24', sortedRows.map(r => r.cal_mm_desc),    cohortMmVals, chartLabels);
+  renderQualityChart('qcCalMmDup',   'Cal MM → Duplicado',   '#fb923c', sortedRows.map(r => r.cal_mm_dup),     cohortMmVals, chartLabels);
+  renderQualityChart('qcRegNidPct',  '% Reg. con NID',       '#38bdf8', sortedRows.map(r => r.t),              trs,           chartLabels);
+  renderQualityChart('qcCalMmPct',   '% Cal MM / Registros', '#34d399', sortedRows.map(r => r[mmField]),       trs,           chartLabels);
+  renderQualityChart('qcCalInmoPct', '% Cal Inmo / Registros','#60a5fa', sortedRows.map(r => r[inmoField]),     trs,           chartLabels);
+  renderQualityChart('qcDup',        'Duplicados total',     '#818cf8', sortedRows.map(r => r.dup),            trs,           chartLabels);
+  renderQualityChart('qcIncomp',     'Registros incomp.',    '#a78bfa', sortedRows.map(r => r.incomp),         trs,           chartLabels);
 }
 
 // Init
-fetch('data.json')
-  .then(r => r.json())
-  .then(data => {
-    RAW_DATA = data;
-    buildLabelCache();
-    buildFuenteCheckboxes();
-    document.getElementById('lastUpdate').textContent = `Datos al ${new Date().toLocaleString('es-CO')}`;
-    onUpdate();
-  })
-  .catch(() => {
-    document.querySelector('#mainTable tbody').innerHTML = '<tr><td colspan="2" style="padding:40px;color:#f87171;text-align:center">No se encontró data.json</td></tr>';
-  });
+Promise.all([
+  fetch('data.json').then(r => r.json()),
+  fetch('antifunnel.json').then(r => r.json()).catch(() => [])
+]).then(([data, antifunnel]) => {
+  RAW_DATA = data;
+  ANTIFUNNEL_DATA = antifunnel;
+  buildLabelCache();
+  buildFuenteCheckboxes();
+  document.getElementById('lastUpdate').textContent = `Datos al ${new Date().toLocaleString('es-CO')}`;
+  onUpdate();
+}).catch(() => {
+  document.querySelector('#funnelTable tbody').innerHTML = '<tr><td colspan="2" style="padding:40px;color:#f87171;text-align:center">No se encontró data.json</td></tr>';
+});
 </script>
 </body>
 </html>
