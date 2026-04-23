@@ -2,7 +2,7 @@ name: Actualizar datos BigQuery
 
 on:
   schedule:
-    - cron: '0 11 * * *'  # 6:00 AM Colombia (UTC-5)
+    - cron: '0 13 * * *'  # 7:00 AM México (UTC-6) / 8:00 AM Colombia (UTC-5)
   workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
 
 jobs:
