@@ -196,6 +196,11 @@ jobs:
         run: |
           bq query --use_legacy_sql=false --format=json --max_rows=200000 < tablero-marketing/antifunnel.sql > /tmp/antifunnel_raw.json
 
+      - name: Query MM-sin-Inmo states (CO + MX)
+        if: always()
+        run: |
+          bq query --use_legacy_sql=false --format=json --max_rows=200000 < tablero-marketing/mm_sin_inmo_states.sql > /tmp/mm_sin_inmo_raw.json
+
       - name: Process funnel data.json
         if: always()
         run: |
@@ -227,11 +232,26 @@ jobs:
           print(f'Antifunnel rows: {len(data)}')
           "
 
+      - name: Process MM-sin-Inmo data.json
+        if: always()
+        run: |
+          python3 -c "
+          import json
+          with open('/tmp/mm_sin_inmo_raw.json') as f:
+              data = json.load(f)
+          for r in data:
+              for k in ('f','state_id','n'):
+                  r[k] = int(r[k])
+          with open('tablero-marketing/mm_sin_inmo_states.json','w') as f:
+              json.dump(data, f, separators=(',',':'))
+          print(f'MM-sin-Inmo rows: {len(data)}')
+          "
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add incompletos-colombia/data.json tablero-marketing/data.json tablero-marketing/antifunnel.json okr-marketing/data.json
+          git add incompletos-colombia/data.json tablero-marketing/data.json tablero-marketing/antifunnel.json tablero-marketing/mm_sin_inmo_states.json okr-marketing/data.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

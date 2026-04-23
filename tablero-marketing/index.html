@@ -151,6 +151,11 @@
   <div style="position: relative; height: 525px;"><canvas id="antifunnelChart"></canvas></div>
 </div>
 
+<h2 class="section-heading">Dónde caen los leads Cal MM sin Inmo</h2>
+<div class="table-container">
+  <table id="mmSinInmoTable"><thead><tr><th>Estado Inmo</th></tr></thead><tbody></tbody></table>
+</div>
+
 <dialog id="helpRegistros" class="help-dialog">
   <h3>Registros</h3>
   <p>Cantidad total de registros creados en el período (<code>COUNT(*)</code> sobre <code>tabla_inmuebles_general</code>). <strong>Incluye filas sin NID</strong>. Siempre se mide por <code>fecha_creacion</code>, igual en Cohort y Events.</p>
@@ -271,6 +276,7 @@ const SHOW_COUNT = 20;
 
 let RAW_DATA = [];
 let ANTIFUNNEL_DATA = [];
+let MM_SIN_INMO_DATA = [];
 let LABEL_CACHE = {}; // {"Colombia:3": "WEB", ...}
 
 function getCountry() { return document.querySelector('input[name="country"]:checked').value; }
@@ -454,6 +460,51 @@ function renderAntifunnelChart(periods, gran, trs) {
   });
 }
 
+function renderMmSinInmo(periods, gran, cohortMmVals) {
+  const country = getCountry();
+  const selIds = getSelFuentes();
+  const pFmt = p => formatPeriod(p, gran);
+  const periodSet = new Set(periods);
+
+  const byKey = {};
+  MM_SIN_INMO_DATA.forEach(r => {
+    if (r.g !== gran || r.c !== country || !selIds.includes(r.f) || !periodSet.has(r.p)) return;
+    const k = r.state_id + '|' + r.p;
+    if (!byKey[k]) byKey[k] = { state_id: r.state_id, state_name: r.state_name, p: r.p, n: 0 };
+    byKey[k].n += r.n;
+  });
+
+  const byState = {};
+  Object.values(byKey).forEach(r => {
+    if (!byState[r.state_id]) byState[r.state_id] = { state_id: r.state_id, state_name: r.state_name, total: 0, perP: {} };
+    byState[r.state_id].total += r.n;
+    byState[r.state_id].perP[r.p] = r.n;
+  });
+
+  const states = Object.values(byState).sort((a, b) => b.total - a.total);
+
+  const thead = document.querySelector('#mmSinInmoTable thead tr');
+  const tbody = document.querySelector('#mmSinInmoTable tbody');
+
+  if (!states.length) {
+    thead.innerHTML = '<th></th><th>Estado Inmo</th>';
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:#64748b">Sin datos</td></tr>';
+    return;
+  }
+
+  thead.innerHTML = '<th></th><th>Estado Inmo</th>' + periods.map(p => {
+    const cls = isCurrentPeriod(p, gran) ? ' class="in-progress"' : '';
+    return `<th${cls}>${pFmt(p)}</th>`;
+  }).join('');
+
+  let tb = '';
+  states.forEach(s => {
+    const values = periods.map(p => s.perP[p] || 0);
+    tb += `<tr class="row-stage"><td></td><td>${s.state_name}</td>${heatCells(values, cohortMmVals, true)}</tr>`;
+  });
+  tbody.innerHTML = tb;
+}
+
 function renderAntifunnel(periods, gran, trs) {
   const country = getCountry();
   const selIds = getSelFuentes();
@@ -555,6 +606,8 @@ function onUpdate() {
     document.querySelector('#qualityTable tbody').innerHTML = '';
     document.querySelector('#antifunnelTable thead tr').innerHTML = '<th></th><th>Estado</th>';
     document.querySelector('#antifunnelTable tbody').innerHTML = '';
+    document.querySelector('#mmSinInmoTable thead tr').innerHTML = '<th></th><th>Estado Inmo</th>';
+    document.querySelector('#mmSinInmoTable tbody').innerHTML = '';
     if (ANTIFUNNEL_CHART) { ANTIFUNNEL_CHART.destroy(); ANTIFUNNEL_CHART = null; }
     clearQualityCharts();
     return;
@@ -623,6 +676,7 @@ function render(rows, gran) {
 
   renderAntifunnel(periods, gran, trs);
   renderAntifunnelChart(periods, gran, trs);
+  renderMmSinInmo(periods, gran, cohortMmVals);
 
   // Scroll al extremo derecho en todas las tablas
   document.querySelectorAll('.table-container').forEach(c => { c.scrollLeft = c.scrollWidth; });
@@ -642,10 +696,12 @@ function render(rows, gran) {
 // Init
 Promise.all([
   fetch('data.json').then(r => r.json()),
-  fetch('antifunnel.json').then(r => r.json()).catch(() => [])
-]).then(([data, antifunnel]) => {
+  fetch('antifunnel.json').then(r => r.json()).catch(() => []),
+  fetch('mm_sin_inmo_states.json').then(r => r.json()).catch(() => [])
+]).then(([data, antifunnel, mmSinInmo]) => {
   RAW_DATA = data;
   ANTIFUNNEL_DATA = antifunnel;
+  MM_SIN_INMO_DATA = mmSinInmo;
   buildLabelCache();
   buildFuenteCheckboxes();
   document.getElementById('lastUpdate').textContent = `Datos al ${new Date().toLocaleString('es-CO')}`;
