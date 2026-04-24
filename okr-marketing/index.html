@@ -144,6 +144,21 @@
 
 <script>
 Chart.register(ChartDataLabels);
+
+Object.assign(Chart.defaults.plugins.tooltip, {
+  backgroundColor: 'rgba(15, 23, 42, 0.95)',
+  borderColor: 'rgba(129, 140, 248, 0.4)',
+  borderWidth: 1,
+  titleColor: '#f8fafc',
+  bodyColor: '#e2e8f0',
+  titleFont: { size: 13, weight: '600' },
+  bodyFont: { size: 12 },
+  padding: 10,
+  cornerRadius: 8,
+  displayColors: true,
+  boxPadding: 4
+});
+
 let DATA, chartInvest, chartLeads, chartCpla;
 let country = 'CO';
 

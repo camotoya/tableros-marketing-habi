@@ -313,6 +313,20 @@
 </dialog>
 
 <script>
+Object.assign(Chart.defaults.plugins.tooltip, {
+  backgroundColor: 'rgba(15, 23, 42, 0.95)',
+  borderColor: 'rgba(129, 140, 248, 0.4)',
+  borderWidth: 1,
+  titleColor: '#f8fafc',
+  bodyColor: '#e2e8f0',
+  titleFont: { size: 13, weight: '600' },
+  bodyFont: { size: 12 },
+  padding: 10,
+  cornerRadius: 8,
+  displayColors: true,
+  boxPadding: 4
+});
+
 // Fuente IDs por país, en el orden solicitado:
 // WEB, Leadforms, Estudio Inmueble, CRM(CO)/Propiedades(MX), Broker, Comercial
 // Los labels se resuelven en runtime leyendo el campo `fn` del primer registro con ese fuente_id
@@ -578,8 +592,6 @@ function renderAntifunnelTop10(periods, gran, denoms) {
           legend: { display: false },
           tooltip: {
             mode: 'nearest', axis: 'xy', intersect: false,
-            backgroundColor: tc.tooltipBg, borderColor: tc.tooltipBorder, borderWidth: 1,
-            titleColor: tc.tooltipTitle, bodyColor: tc.tooltipBody,
             callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
           }
         },
@@ -737,8 +749,6 @@ function renderQualityChart(canvasId, label, color, values, denominators, labels
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: tc.tooltipBg, borderColor: tc.tooltipBorder, borderWidth: 1,
-          titleColor: tc.tooltipTitle, bodyColor: tc.tooltipBody,
           callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
         }
       },
