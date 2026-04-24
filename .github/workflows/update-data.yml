@@ -176,7 +176,7 @@ jobs:
       - name: Query OKR Marketing investment
         if: always()
         run: |
-          grep -v '^\-\-' okr-marketing/query.sql | bq query --use_legacy_sql=false --format=json --max_rows=100 > /tmp/okr_invest.json
+          grep -v '^\-\-' okr-marketing/query.sql | bq query --use_legacy_sql=false --format=json --max_rows=10000 > /tmp/okr_invest.json
 
       - name: Download OKR leads sheets and build data.json
         if: always()
