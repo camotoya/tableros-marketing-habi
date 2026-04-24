@@ -6,74 +6,126 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
 <title>Funnel Sellers</title>
 <style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-hover: #263348;
+    --border: #334155;
+    --border-strong: #4b5563;
+    --text: #e2e8f0;
+    --text-title: #f8fafc;
+    --text-muted: #cbd5e1;
+    --text-muted-2: #94a3b8;
+    --text-muted-3: #64748b;
+    --accent: #818cf8;
+    --accent-on: #f8fafc;
+    --in-progress: #fbbf24;
+    --row-total: #1a2744;
+    --row-in-chart: #20304f;
+    --row-border: #283548;
+    --section-bg: #0f172a;
+    --chart-grid: #1e293b;
+    --tooltip-bg: #0f172a;
+    --backdrop: rgba(15,23,42,0.75);
+    --shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  body.light {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --card-hover: #f1f5f9;
+    --border: #e2e8f0;
+    --border-strong: #cbd5e1;
+    --text: #334155;
+    --text-title: #0f172a;
+    --text-muted: #475569;
+    --text-muted-2: #64748b;
+    --text-muted-3: #94a3b8;
+    --accent: #6366f1;
+    --accent-on: #ffffff;
+    --in-progress: #b45309;
+    --row-total: #eef2ff;
+    --row-in-chart: #eff6ff;
+    --row-border: #f1f5f9;
+    --section-bg: #eef2ff;
+    --chart-grid: #e2e8f0;
+    --tooltip-bg: #1e293b;
+    --backdrop: rgba(15,23,42,0.35);
+    --shadow: 0 10px 40px rgba(15,23,42,0.15);
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; padding: 24px; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; transition: background 0.2s, color 0.2s; }
   .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
-  .header h1 { font-size: 22px; font-weight: 600; color: #f8fafc; }
-  .header h1 span#countryTitle { color: #818cf8; }
-  .header .refresh-info { font-size: 13px; color: #64748b; }
+  .header h1 { font-size: 22px; font-weight: 600; color: var(--text-title); }
+  .header h1 span#countryTitle { color: var(--accent); }
+  .header .refresh-info { font-size: 13px; color: var(--text-muted-3); display: flex; align-items: center; gap: 10px; }
+  .theme-btn { background: var(--card); border: 1px solid var(--border); color: var(--text-muted-2); border-radius: 6px; padding: 4px 10px; font-size: 14px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+  .theme-btn:hover { background: var(--card-hover); color: var(--accent); }
 
   .controls { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: stretch; }
-  .control-card { background: #1e293b; border-radius: 10px; border: 1px solid #334155; padding: 14px 20px; }
+  .control-card { background: var(--card); border-radius: 10px; border: 1px solid var(--border); padding: 14px 20px; }
   .control-card.grow { flex: 1; }
-  .control-label { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 8px; }
+  .control-label { font-size: 11px; color: var(--text-muted-2); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; margin-bottom: 8px; }
 
   .filter-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .filter-bar label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #cbd5e1; cursor: pointer; padding: 4px 10px; border-radius: 6px; transition: background 0.15s; }
-  .filter-bar label:hover { background: #334155; }
-  .filter-bar input[type="checkbox"], .filter-bar input[type="radio"] { accent-color: #818cf8; width: 15px; height: 15px; cursor: pointer; }
-  .filter-bar .select-all { border-right: 1px solid #334155; padding-right: 14px; }
+  .filter-bar label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); cursor: pointer; padding: 4px 10px; border-radius: 6px; transition: background 0.15s; }
+  .filter-bar label:hover { background: var(--border); }
+  .filter-bar input[type="checkbox"], .filter-bar input[type="radio"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+  .filter-bar .select-all { border-right: 1px solid var(--border); padding-right: 14px; }
   .fuente-tag { font-size: 10px; padding: 1px 5px; border-radius: 3px; margin-left: 3px; font-weight: 600; }
 
-  select.granularity { background: #334155; color: #e2e8f0; border: 1px solid #4b5563; border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: 500; }
-  select.granularity:focus { outline: none; border-color: #818cf8; }
+  select.granularity { background: var(--border); color: var(--text); border: 1px solid var(--border-strong); border-radius: 6px; padding: 8px 12px; font-size: 14px; cursor: pointer; font-weight: 500; }
+  select.granularity:focus { outline: none; border-color: var(--accent); }
 
-  .table-container { background: #1e293b; border-radius: 10px; border: 1px solid #334155; overflow-x: auto; }
+  .table-container { background: var(--card); border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; }
   table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
-  thead th { background: #334155; color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 12px 14px; text-align: right; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
-  thead th:first-child { min-width: 36px; width: 36px; padding: 12px 0; text-align: center; position: sticky; left: 0; z-index: 4; background: #334155; }
-  thead th:nth-child(2) { text-align: left; min-width: 220px; position: sticky; left: 36px; z-index: 3; background: #334155; border-right: 2px solid #4b5563; }
-  thead th.in-progress { font-style: italic; color: #fbbf24; }
+  thead th { background: var(--border); color: var(--text-muted-2); font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 12px 14px; text-align: right; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
+  thead th:first-child { min-width: 36px; width: 36px; padding: 12px 0; text-align: center; position: sticky; left: 0; z-index: 4; background: var(--border); }
+  thead th:nth-child(2) { text-align: left; min-width: 220px; position: sticky; left: 36px; z-index: 3; background: var(--border); border-right: 2px solid var(--border-strong); }
+  thead th.in-progress { font-style: italic; color: var(--in-progress); }
   thead th.in-progress::after { content: '*'; margin-left: 3px; }
-  tbody td { padding: 10px 14px; text-align: right; border-top: 1px solid #283548; white-space: nowrap; }
-  tbody td:first-child { min-width: 36px; width: 36px; padding: 10px 0; text-align: center; position: sticky; left: 0; z-index: 2; background: #1e293b; }
-  tbody td:nth-child(2) { text-align: left; font-weight: 500; color: #cbd5e1; position: sticky; left: 36px; z-index: 1; background: #1e293b; border-right: 2px solid #4b5563; }
-  tbody tr { background: #1e293b; }
-  tbody tr:hover td { background: #263348; }
-  tbody tr:hover td:first-child { background: #263348; }
+  tbody td { padding: 10px 14px; text-align: right; border-top: 1px solid var(--row-border); white-space: nowrap; }
+  tbody td:first-child { min-width: 36px; width: 36px; padding: 10px 0; text-align: center; position: sticky; left: 0; z-index: 2; background: var(--card); }
+  tbody td:nth-child(2) { text-align: left; font-weight: 500; color: var(--text-muted); position: sticky; left: 36px; z-index: 1; background: var(--card); border-right: 2px solid var(--border-strong); }
+  tbody tr { background: var(--card); }
+  tbody tr:hover td { background: var(--card-hover); }
+  tbody tr:hover td:first-child { background: var(--card-hover); }
 
-  tbody tr.row-total td { font-weight: 700; color: #f8fafc; font-size: 14px; background: #1a2744; }
-  tbody tr.row-total td:first-child, tbody tr.row-total td:nth-child(2) { background: #1a2744; }
+  tbody tr.row-total td { font-weight: 700; color: var(--text-title); font-size: 14px; background: var(--row-total); }
+  tbody tr.row-total td:first-child, tbody tr.row-total td:nth-child(2) { background: var(--row-total); }
   tbody tr.row-stage td { font-weight: 500; font-size: 13px; }
-  tbody tr.row-stage td:nth-child(2) { color: #cbd5e1; }
-  tbody tr.row-stage .n { font-weight: 600; color: #e2e8f0; }
+  tbody tr.row-stage td:nth-child(2) { color: var(--text-muted); }
+  tbody tr.row-stage .n { font-weight: 600; color: var(--text); }
   tbody tr.row-stage .p { font-size: 11px; opacity: 0.85; margin-left: 6px; }
-  tbody tr.row-sep td { padding: 0; height: 3px; background: #0f172a; border: none; }
-  tbody tr.row-sep td:first-child, tbody tr.row-sep td:nth-child(2) { background: #0f172a; border-right-color: #0f172a; }
-  tbody tr.row-section td.section-title { padding: 8px 14px; background: #0f172a; color: #818cf8; font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; border: none; text-align: left; position: sticky; left: 0; z-index: 2; border-right: 2px solid #0f172a; }
-  tbody tr.row-section td.section-fill { background: #0f172a; border: none; padding: 0; }
+  tbody tr.row-sep td { padding: 0; height: 3px; background: var(--bg); border: none; }
+  tbody tr.row-sep td:first-child, tbody tr.row-sep td:nth-child(2) { background: var(--bg); border-right-color: var(--bg); }
+  tbody tr.row-in-chart td { background: var(--row-in-chart); }
+  tbody tr.row-in-chart td:first-child, tbody tr.row-in-chart td:nth-child(2) { background: var(--row-in-chart); }
+  tbody tr.row-in-chart td:first-child { color: var(--accent); font-weight: 700; font-size: 11px; }
+  tbody tr.row-section td.section-title { padding: 8px 14px; background: var(--section-bg); color: var(--accent); font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 1px; border: none; text-align: left; position: sticky; left: 0; z-index: 2; border-right: 2px solid var(--section-bg); }
+  tbody tr.row-section td.section-fill { background: var(--section-bg); border: none; padding: 0; }
 
-  .back-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #94a3b8; text-decoration: none; font-size: 13px; margin-bottom: 16px; transition: color 0.15s, border-color 0.15s; }
-  .back-link:hover { color: #818cf8; border-color: #818cf8; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted-2); text-decoration: none; font-size: 13px; margin-bottom: 16px; transition: color 0.15s, border-color 0.15s; }
+  .back-link:hover { color: var(--accent); border-color: var(--accent); }
 
-  .help-btn { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: #334155; color: #94a3b8; border: none; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 6px; transition: background 0.15s, color 0.15s; vertical-align: middle; padding: 0; line-height: 1; }
-  .help-btn:hover { background: #818cf8; color: #f8fafc; }
-  .help-dialog { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 10px; padding: 24px 28px; max-width: 520px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); font-family: inherit; margin: 40px 0 0 40px; }
-  .help-dialog::backdrop { background: rgba(15,23,42,0.75); backdrop-filter: blur(2px); }
-  .help-dialog h3 { color: #f8fafc; font-size: 16px; font-weight: 600; margin-bottom: 14px; }
-  .help-dialog p { font-size: 13px; line-height: 1.55; color: #cbd5e1; margin-bottom: 10px; }
-  .help-dialog p strong { color: #818cf8; font-weight: 600; }
-  .help-dialog .close-btn { margin-top: 14px; background: #334155; color: #e2e8f0; border: none; padding: 7px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: background 0.15s; }
-  .help-dialog .close-btn:hover { background: #4b5563; }
+  .help-btn { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--border); color: var(--text-muted-2); border: none; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 6px; transition: background 0.15s, color 0.15s; vertical-align: middle; padding: 0; line-height: 1; }
+  .help-btn:hover { background: var(--accent); color: var(--accent-on); }
+  .help-dialog { background: var(--card); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 24px 28px; max-width: 520px; box-shadow: var(--shadow); font-family: inherit; margin: 40px 0 0 40px; }
+  .help-dialog::backdrop { background: var(--backdrop); backdrop-filter: blur(2px); }
+  .help-dialog h3 { color: var(--text-title); font-size: 16px; font-weight: 600; margin-bottom: 14px; }
+  .help-dialog p { font-size: 13px; line-height: 1.55; color: var(--text-muted); margin-bottom: 10px; }
+  .help-dialog p strong { color: var(--accent); font-weight: 600; }
+  .help-dialog .close-btn { margin-top: 14px; background: var(--border); color: var(--text); border: none; padding: 7px 18px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: background 0.15s; }
+  .help-dialog .close-btn:hover { background: var(--border-strong); }
 
   .quality-charts { display: grid; gap: 10px; margin-top: 10px; }
   .quality-charts.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quality-charts.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .quality-charts.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .qc-card { background: #1e293b; border-radius: 8px; border: 1px solid #334155; padding: 10px; min-width: 0; }
-  .qc-title { font-size: 10px; color: #94a3b8; font-weight: 600; margin-bottom: 6px; line-height: 1.3; min-height: 28px; overflow: hidden; }
+  .qc-card { background: var(--card); border-radius: 8px; border: 1px solid var(--border); padding: 10px; min-width: 0; }
+  .qc-title { font-size: 10px; color: var(--text-muted-2); font-weight: 600; margin-bottom: 6px; line-height: 1.3; min-height: 28px; overflow: hidden; }
   .qc-wrap { position: relative; height: 140px; }
-  .section-heading { color: #f8fafc; font-size: 16px; font-weight: 600; margin: 24px 0 10px; }
+  .section-heading { color: var(--text-title); font-size: 16px; font-weight: 600; margin: 24px 0 10px; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -81,7 +133,10 @@
 <a href="../" class="back-link">← Volver (Tableros Marketing Sellers)</a>
 <div class="header">
   <h1>Funnel Sellers — <span id="countryTitle">México</span></h1>
-  <div class="refresh-info"><span id="lastUpdate"></span></div>
+  <div class="refresh-info">
+    <span id="lastUpdate"></span>
+    <button type="button" class="theme-btn" id="themeToggle" onclick="toggleTheme()" aria-label="Cambiar tema">🌙</button>
+  </div>
 </div>
 
 <div class="controls">
@@ -146,9 +201,19 @@
   <table id="antifunnelTable"><thead><tr><th>Estado</th></tr></thead><tbody></tbody></table>
 </div>
 
-<div class="qc-card" style="margin-top: 12px;">
-  <div class="qc-title" style="font-size: 12px; min-height: 0;">Evolución del % de cada estado / Registros — una línea por estado, orden por total descendente</div>
-  <div style="position: relative; height: 525px;"><canvas id="antifunnelChart"></canvas></div>
+<div class="quality-charts cols-5" style="margin-top: 12px;">
+  <div class="qc-card"><div class="qc-title" id="afcTitle1">—</div><div class="qc-wrap"><canvas id="afc1"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle2">—</div><div class="qc-wrap"><canvas id="afc2"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle3">—</div><div class="qc-wrap"><canvas id="afc3"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle4">—</div><div class="qc-wrap"><canvas id="afc4"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle5">—</div><div class="qc-wrap"><canvas id="afc5"></canvas></div></div>
+</div>
+<div class="quality-charts cols-5">
+  <div class="qc-card"><div class="qc-title" id="afcTitle6">—</div><div class="qc-wrap"><canvas id="afc6"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle7">—</div><div class="qc-wrap"><canvas id="afc7"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle8">—</div><div class="qc-wrap"><canvas id="afc8"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle9">—</div><div class="qc-wrap"><canvas id="afc9"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle10">—</div><div class="qc-wrap"><canvas id="afc10"></canvas></div></div>
 </div>
 
 <h2 class="section-heading">Dónde caen los leads Cal MM sin Inmo</h2>
@@ -277,6 +342,35 @@ const SHOW_COUNT = 20;
 let RAW_DATA = [];
 let ANTIFUNNEL_DATA = [];
 let MM_SIN_INMO_DATA = [];
+
+function themeColors() {
+  const s = getComputedStyle(document.body);
+  const g = n => s.getPropertyValue(n).trim();
+  return {
+    tick: g('--text-muted-2'),
+    tickSmall: g('--text-muted-3'),
+    grid: g('--chart-grid'),
+    legend: g('--text-muted'),
+    tooltipBg: g('--tooltip-bg'),
+    tooltipBorder: g('--border'),
+    tooltipTitle: g('--text-title'),
+    tooltipBody: g('--text-muted')
+  };
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  localStorage.setItem('tablero-theme', isLight ? 'light' : 'dark');
+  const btn = document.getElementById('themeToggle');
+  if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+  if (typeof onUpdate === 'function') onUpdate();
+}
+
+(function initTheme() {
+  // Default: light. Solo salta a dark si el usuario lo guardó explícitamente.
+  const saved = localStorage.getItem('tablero-theme');
+  if (saved !== 'dark') document.body.classList.add('light');
+})();
 let LABEL_CACHE = {}; // {"Colombia:3": "WEB", ...}
 
 function getCountry() { return document.querySelector('input[name="country"]:checked').value; }
@@ -403,10 +497,18 @@ function renderPctRow(label, values, denominators, helpId) {
 
 function fmt(n) { return n.toLocaleString('es-MX'); }
 
-let ANTIFUNNEL_CHART = null;
-function renderAntifunnelChart(periods, gran, trs) {
-  const ctx = document.getElementById('antifunnelChart');
-  if (!ctx) return;
+const AF_CHARTS = {};
+const AF_PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#38bdf8','#818cf8','#94a3b8'];
+
+function clearAntifunnelCharts() {
+  Object.keys(AF_CHARTS).forEach(id => { AF_CHARTS[id].destroy(); delete AF_CHARTS[id]; });
+  for (let i = 1; i <= 10; i++) {
+    const t = document.getElementById('afcTitle' + i);
+    if (t) t.textContent = '—';
+  }
+}
+
+function renderAntifunnelTop10(periods, gran, denoms) {
   const country = getCountry();
   const selIds = getSelFuentes();
   const periodSet = new Set(periods);
@@ -424,40 +526,85 @@ function renderAntifunnelChart(periods, gran, trs) {
     byState[r.state_id].total += r.n;
     byState[r.state_id].perP[r.p] = r.n;
   });
-  const states = Object.values(byState).sort((a, b) => b.total - a.total);
+  const allStates = Object.values(byState).sort((a, b) => b.total - a.total);
+  const top9 = allStates.slice(0, 9);
+  const rest = allStates.slice(9);
 
-  if (ANTIFUNNEL_CHART) { ANTIFUNNEL_CHART.destroy(); ANTIFUNNEL_CHART = null; }
-  if (!states.length) return;
+  // Serie "Otros" = suma de los no top-9 por período
+  const otrosPerP = {};
+  rest.forEach(s => {
+    Object.entries(s.perP).forEach(([p, n]) => { otrosPerP[p] = (otrosPerP[p] || 0) + n; });
+  });
+  const otrosTotal = rest.reduce((a, s) => a + s.total, 0);
 
-  const PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#38bdf8','#818cf8','#4ade80','#facc15','#e879f9','#06b6d4','#f59e0b','#10b981','#c084fc','#fb7185','#22d3ee','#eab308','#84cc16'];
   const labels = periods.map(p => formatPeriod(p, gran));
-  const datasets = states.map((s, i) => {
-    const color = PALETTE[i % PALETTE.length];
-    const pcts = periods.map((p, j) => trs[j] > 0 ? (s.perP[p] || 0) / trs[j] * 100 : 0);
-    return { label: s.state_name, data: pcts, borderColor: color, backgroundColor: color + '22', tension: 0.3, pointRadius: 2, pointHoverRadius: 4, borderWidth: 2 };
-  });
 
-  ANTIFUNNEL_CHART = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'nearest', axis: 'xy', intersect: false },
-      plugins: {
-        legend: { labels: { color: '#cbd5e1', font: { size: 11 }, usePointStyle: true, padding: 10, boxWidth: 10 }, position: 'bottom' },
-        tooltip: {
-          mode: 'nearest', axis: 'xy', intersect: false,
-          backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-          titleColor: '#f8fafc', bodyColor: '#cbd5e1',
-          callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(2) + '%' }
+  // Destruir charts existentes antes de redibujar
+  Object.keys(AF_CHARTS).forEach(id => { AF_CHARTS[id].destroy(); delete AF_CHARTS[id]; });
+
+  // Dibuja una mini-gráfica de línea única
+  function drawOne(canvasId, titleId, stateName, color, perP, showEmpty) {
+    const titleEl = document.getElementById(titleId);
+    if (!titleEl) return;
+    titleEl.textContent = stateName;
+    titleEl.title = stateName;
+
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+
+    const pcts = periods.map((p, j) => (denoms[j] > 0 && perP[p]) ? (perP[p] / denoms[j]) * 100 : 0);
+    const shown = pcts.filter(v => v > 0);
+    let yMin = 0, yMax;
+    if (shown.length) {
+      const lo = Math.min(...shown), hi = Math.max(...shown);
+      const range = Math.max(hi - lo, 1);
+      const pad = range * 0.25;
+      yMin = Math.max(0, Math.floor((lo - pad) / 2) * 2);
+      yMax = Math.ceil((hi + pad) / 2) * 2;
+    } else if (!showEmpty) return; // si pcts todos 0 y no es "Otros", lo dejamos vacío
+
+    const tc = themeColors();
+    AF_CHARTS[canvasId] = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets: [{
+        label: stateName, data: pcts,
+        borderColor: color, backgroundColor: color + '22',
+        tension: 0.3, pointRadius: 2, pointHoverRadius: 4, borderWidth: 2, fill: true
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'nearest', axis: 'xy', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            mode: 'nearest', axis: 'xy', intersect: false,
+            backgroundColor: tc.tooltipBg, borderColor: tc.tooltipBorder, borderWidth: 1,
+            titleColor: tc.tooltipTitle, bodyColor: tc.tooltipBody,
+            callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
+          }
+        },
+        scales: {
+          x: { ticks: { color: tc.tickSmall, font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: tc.grid } },
+          y: { ticks: { color: tc.tickSmall, font: { size: 9 }, callback: v => v + '%' }, grid: { color: tc.grid }, min: yMin, max: yMax }
         }
-      },
-      scales: {
-        x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true }, grid: { color: '#1e293b' } },
-        y: { ticks: { color: '#94a3b8', callback: v => v + '%' }, grid: { color: '#1e293b' }, beginAtZero: true }
       }
+    });
+  }
+
+  // Primeros 9: un estado cada uno
+  for (let i = 0; i < 9; i++) {
+    const canvasId = 'afc' + (i + 1);
+    const titleId  = 'afcTitle' + (i + 1);
+    if (top9[i]) {
+      drawOne(canvasId, titleId, top9[i].state_name, AF_PALETTE[i], top9[i].perP, false);
+    } else {
+      const t = document.getElementById(titleId);
+      if (t) { t.textContent = '—'; t.removeAttribute('title'); }
     }
-  });
+  }
+
+  // 10: "Otros" (siempre, aunque esté vacío)
+  drawOne('afc10', 'afcTitle10', `Otros (${rest.length} estados)`, AF_PALETTE[9], otrosPerP, true);
 }
 
 function renderMmSinInmo(periods, gran, cohortMmVals) {
@@ -528,13 +675,16 @@ function renderAntifunnel(periods, gran, trs) {
 
   const states = Object.values(byState).sort((a, b) => b.total - a.total);
 
+  // Denominador: total de NO calificados por período (suma de todos los estados)
+  const denoms = periods.map(p => states.reduce((acc, s) => acc + (s.perP[p] || 0), 0));
+
   const thead = document.querySelector('#antifunnelTable thead tr');
   const tbody = document.querySelector('#antifunnelTable tbody');
 
   if (!states.length) {
     thead.innerHTML = '<th></th><th>Estado</th>';
     tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:#64748b">Sin datos</td></tr>';
-    return;
+    return denoms;
   }
 
   thead.innerHTML = '<th></th><th>Estado</th>' + periods.map(p => {
@@ -543,12 +693,15 @@ function renderAntifunnel(periods, gran, trs) {
   }).join('');
 
   let tb = '';
-  states.forEach(s => {
+  states.forEach((s, i) => {
     const values = periods.map(p => s.perP[p] || 0);
-    tb += `<tr class="row-stage"><td></td><td>${s.state_name}</td>${heatCells(values, trs, true)}</tr>`;
+    const cls = i < 9 ? 'row-stage row-in-chart' : 'row-stage';
+    const idx = i < 9 ? (i + 1) : '';
+    tb += `<tr class="${cls}"><td>${idx}</td><td>${s.state_name}</td>${heatCells(values, denoms, true)}</tr>`;
   });
   tbody.innerHTML = tb;
 
+  return denoms;
 }
 
 const QC_CHARTS = {};
@@ -569,6 +722,7 @@ function renderQualityChart(canvasId, label, color, values, denominators, labels
     yMax = Math.ceil((hi + pad) / 2) * 2;
   }
 
+  const tc = themeColors();
   if (QC_CHARTS[canvasId]) QC_CHARTS[canvasId].destroy();
   QC_CHARTS[canvasId] = new Chart(ctx, {
     type: 'line',
@@ -583,14 +737,14 @@ function renderQualityChart(canvasId, label, color, values, denominators, labels
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#0f172a', borderColor: '#334155', borderWidth: 1,
-          titleColor: '#f8fafc', bodyColor: '#cbd5e1',
+          backgroundColor: tc.tooltipBg, borderColor: tc.tooltipBorder, borderWidth: 1,
+          titleColor: tc.tooltipTitle, bodyColor: tc.tooltipBody,
           callbacks: { label: c => c.parsed.y.toFixed(2) + '%' }
         }
       },
       scales: {
-        x: { ticks: { color: '#64748b', font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: '#1e293b' } },
-        y: { ticks: { color: '#64748b', font: { size: 9 }, callback: v => v + '%' }, grid: { color: '#1e293b' }, min: yMin, max: yMax }
+        x: { ticks: { color: tc.tickSmall, font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: tc.grid } },
+        y: { ticks: { color: tc.tickSmall, font: { size: 9 }, callback: v => v + '%' }, grid: { color: tc.grid }, min: yMin, max: yMax }
       }
     }
   });
@@ -608,7 +762,7 @@ function onUpdate() {
     document.querySelector('#antifunnelTable tbody').innerHTML = '';
     document.querySelector('#mmSinInmoTable thead tr').innerHTML = '<th></th><th>Estado Inmo</th>';
     document.querySelector('#mmSinInmoTable tbody').innerHTML = '';
-    if (ANTIFUNNEL_CHART) { ANTIFUNNEL_CHART.destroy(); ANTIFUNNEL_CHART = null; }
+    clearAntifunnelCharts();
     clearQualityCharts();
     return;
   }
@@ -674,8 +828,8 @@ function render(rows, gran) {
   qualityTb += renderPctRow('Registros incompletos', sortedRows.map(r => r.incomp), trs, 'helpIncomp');
   qualityTbody.innerHTML = qualityTb;
 
-  renderAntifunnel(periods, gran, trs);
-  renderAntifunnelChart(periods, gran, trs);
+  const antifunnelDenoms = renderAntifunnel(periods, gran) || periods.map(() => 0);
+  renderAntifunnelTop10(periods, gran, antifunnelDenoms);
   renderMmSinInmo(periods, gran, cohortMmVals);
 
   // Scroll al extremo derecho en todas las tablas
@@ -705,6 +859,7 @@ Promise.all([
   buildLabelCache();
   buildFuenteCheckboxes();
   document.getElementById('lastUpdate').textContent = `Datos al ${new Date().toLocaleString('es-CO')}`;
+  document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
   onUpdate();
 }).catch(() => {
   document.querySelector('#funnelTable tbody').innerHTML = '<tr><td colspan="2" style="padding:40px;color:#f87171;text-align:center">No se encontró data.json</td></tr>';

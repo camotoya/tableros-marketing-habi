@@ -6,25 +6,57 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
 <title>Tableros Marketing — Habi</title>
 <style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-hover: #1e2942;
+    --border: #334155;
+    --text-title: #f8fafc;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-muted-2: #64748b;
+    --accent: #818cf8;
+  }
+  body.light {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --card-hover: #eef2ff;
+    --border: #e2e8f0;
+    --text-title: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-muted-2: #94a3b8;
+    --accent: #6366f1;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 48px 24px; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 48px 24px; transition: background 0.2s, color 0.2s; }
+  .theme-btn { position: fixed; top: 20px; right: 24px; background: var(--card); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; padding: 4px 10px; font-size: 14px; cursor: pointer; transition: background 0.15s, color 0.15s; z-index: 10; }
+  .theme-btn:hover { color: var(--accent); }
   .header { text-align: center; margin-bottom: 48px; max-width: 720px; }
-  .header h1 { font-size: 32px; font-weight: 600; color: #f8fafc; margin-bottom: 12px; }
-  .header h1 span { color: #818cf8; }
-  .header p { font-size: 15px; color: #94a3b8; line-height: 1.5; }
+  .header h1 { font-size: 32px; font-weight: 600; color: var(--text-title); margin-bottom: 12px; }
+  .header h1 span { color: var(--accent); }
+  .header p { font-size: 15px; color: var(--text-muted); line-height: 1.5; }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; max-width: 960px; width: 100%; }
-  .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 24px; text-decoration: none; color: inherit; transition: transform 0.15s, border-color 0.15s, background 0.15s; display: flex; flex-direction: column; gap: 12px; }
-  .card:hover { transform: translateY(-2px); border-color: #818cf8; background: #1e2942; }
-  .card .tag { font-size: 11px; color: #818cf8; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
-  .card h2 { font-size: 20px; color: #f8fafc; font-weight: 600; }
-  .card p { font-size: 14px; color: #94a3b8; line-height: 1.5; }
-  .card .arrow { color: #818cf8; font-size: 18px; margin-top: 8px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; text-decoration: none; color: inherit; transition: transform 0.15s, border-color 0.15s, background 0.15s; display: flex; flex-direction: column; gap: 12px; }
+  .card:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--card-hover); }
+  .card .tag { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; }
+  .card h2 { font-size: 20px; color: var(--text-title); font-weight: 600; }
+  .card p { font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+  .card .arrow { color: var(--accent); font-size: 18px; margin-top: 8px; }
 
-  footer { margin-top: 48px; font-size: 12px; color: #64748b; }
+  footer { margin-top: 48px; font-size: 12px; color: var(--text-muted-2); }
 </style>
+<script>
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    localStorage.setItem('tablero-theme', isLight ? 'light' : 'dark');
+    document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+  }
+</script>
 </head>
 <body>
+  <button type="button" class="theme-btn" id="themeToggle" onclick="toggleTheme()" aria-label="Cambiar tema">🌙</button>
   <div class="header">
     <h1>Tableros <span>Marketing</span></h1>
     <p>Dashboards de análisis para el equipo de growth/marketing de Habi.</p>
@@ -54,5 +86,13 @@
   </div>
 
   <footer>habi · marketing analytics</footer>
+<script>
+  // Init theme from localStorage (default: light)
+  (function(){
+    const saved = localStorage.getItem('tablero-theme');
+    if (saved !== 'dark') document.body.classList.add('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
+  })();
+</script>
 </body>
 </html>
