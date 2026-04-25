@@ -443,6 +443,7 @@ function render() {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: text, font: { size: 12 } } },
@@ -508,73 +509,94 @@ function renderStates(from, to, utms, gran, keys, labels) {
   const body = document.getElementById('statesBody');
   if (!STATES) { head.innerHTML = ''; body.innerHTML = ''; return; }
 
-  // Filtrar y agrupar
-  const stateRows = STATES.rows.filter(r => r.d >= from && r.d <= to && utms.includes(r.u));
-  // Total por estado (para ranking)
+  const utmsSet = new Set(utms);
+  const stateRows = STATES.rows.filter(r => r.d >= from && r.d <= to && utmsSet.has(r.u));
+
   const totalByState = {};
   stateRows.forEach(r => { totalByState[r.sn] = (totalByState[r.sn] || 0) + r.n; });
   const sortedStates = Object.entries(totalByState).sort((a, b) => b[1] - a[1]).map(e => e[0]);
   const topStates = sortedStates.slice(0, TOP_N_STATES);
+  const topSet = new Set(topStates);
   const hasOthers = sortedStates.length > TOP_N_STATES;
   const seriesStates = hasOthers ? [...topStates, '__OTROS__'] : topStates;
 
-  // bucket -> state -> count
-  const bucket = {};
-  keys.forEach(k => { bucket[k] = {}; seriesStates.forEach(s => { bucket[k][s] = 0; }); });
-  stateRows.forEach(r => {
-    const k = bucketKey(r.d, gran);
-    if (!bucket[k]) return;
-    const s = topStates.includes(r.sn) ? r.sn : (hasOthers ? '__OTROS__' : null);
-    if (s !== null) bucket[k][s] += r.n;
-  });
+  // Index keys for O(1) bucket lookup
+  const keyIdx = new Map();
+  keys.forEach((k, i) => keyIdx.set(k, i));
+  const stateIdx = new Map();
+  seriesStates.forEach((s, i) => stateIdx.set(s, i));
 
-  // Totales por bucket (para %)
-  const totalsByBucket = keys.map(k => seriesStates.reduce((a, s) => a + bucket[k][s], 0));
+  // Matrix bucket[stateIdx][keyIdx] (Int32Array — fast and small)
+  const matrix = seriesStates.map(() => new Int32Array(keys.length));
+  for (const r of stateRows) {
+    const ki = keyIdx.get(bucketKey(r.d, gran));
+    if (ki === undefined) continue;
+    const sName = topSet.has(r.sn) ? r.sn : (hasOthers ? '__OTROS__' : null);
+    if (sName === null) continue;
+    matrix[stateIdx.get(sName)][ki] += r.n;
+  }
+
+  // Totales por bucket
+  const totalsByBucket = new Array(keys.length).fill(0);
+  for (let s = 0; s < seriesStates.length; s++) {
+    for (let k = 0; k < keys.length; k++) totalsByBucket[k] += matrix[s][k];
+  }
   const grandTotal = totalsByBucket.reduce((a, b) => a + b, 0);
 
-  // ----- Tabla -----
+  // Pre-compute colors and rgba alphas
   const stateLabel = (s) => s === '__OTROS__' ? `Otros (${sortedStates.length - TOP_N_STATES})` : s;
   const colorFor = (s, i) => s === '__OTROS__' ? OTHERS_COLOR : STATE_PALETTE[i % STATE_PALETTE.length];
+  const rgbCache = seriesStates.map((s, i) => {
+    const h = colorFor(s, i).replace('#', '');
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  });
 
-  // Header
-  head.innerHTML = '<th style="text-align:left;">Estado</th>' +
-    labels.map(l => `<th>${l}</th>`).join('') +
-    '<th>Total</th>';
+  // Si la granularidad es día y hay muchos buckets, ocultamos la tabla (sería ~5000 celdas)
+  // y mostramos un aviso. El chart sí se queda — Chart.js lo aguanta bien.
+  const TABLE_LIMIT = 60;
+  const tooManyCols = keys.length > TABLE_LIMIT;
+  const tableWrap = document.querySelector('.states-table-wrap');
 
-  // Filas: top states + (Otros) + Total sin precio
-  const rowsHtml = seriesStates.map((s, i) => {
-    const color = colorFor(s, i);
-    const cells = keys.map((k, j) => {
-      const v = bucket[k][s];
-      const tot = totalsByBucket[j];
-      if (!v) return '<td class="zero">·</td>';
-      const pct = tot > 0 ? (v / tot) * 100 : 0;
-      // Heatmap: intensidad por % dentro del bucket
-      const alpha = Math.min(0.6, 0.08 + (pct / 100) * 0.55);
-      const bg = `background: ${hexToRgba(color, alpha)};`;
-      return `<td class="heat" style="${bg}">${fmtNum(v)}<span class="pct">${pct.toFixed(0)}%</span></td>`;
-    }).join('');
-    const stateTotal = totalByState[s === '__OTROS__' ? sortedStates[TOP_N_STATES] : s] || 0;
-    // Recompute Otros total properly
-    const totalDisplay = s === '__OTROS__'
-      ? sortedStates.slice(TOP_N_STATES).reduce((a, x) => a + (totalByState[x] || 0), 0)
-      : (totalByState[s] || 0);
-    const pctTotal = grandTotal > 0 ? (totalDisplay / grandTotal) * 100 : 0;
-    return `<tr>
-      <td class="state-name"><span class="swatch" style="background:${color};"></span>${stateLabel(s)}</td>
-      ${cells}
-      <td><strong>${fmtNum(totalDisplay)}</strong><span class="pct">${pctTotal.toFixed(0)}%</span></td>
-    </tr>`;
-  }).join('');
+  if (tooManyCols) {
+    head.innerHTML = '';
+    body.innerHTML = `<tr><td style="padding:14px; color:var(--text-muted); font-size:12px;">
+      Tabla oculta: ${keys.length} columnas (${gran === 'd' ? 'día' : gran === 'w' ? 'semana' : 'mes'}).
+      Cambia a granularidad <strong>semana</strong> o <strong>mes</strong>, o reduce el rango (≤ ${TABLE_LIMIT} períodos) para verla.
+    </td></tr>`;
+  } else {
+    // Header
+    const headParts = ['<th style="text-align:left;">Estado</th>'];
+    for (const l of labels) headParts.push(`<th>${l}</th>`);
+    headParts.push('<th>Total</th>');
+    head.innerHTML = headParts.join('');
 
-  // Fila total sin precio
-  const totalRow = `<tr class="total-row">
-    <td class="state-name">Total sin precio</td>
-    ${totalsByBucket.map(t => `<td>${t ? fmtNum(t) : '·'}</td>`).join('')}
-    <td>${fmtNum(grandTotal)}</td>
-  </tr>`;
-
-  body.innerHTML = rowsHtml + totalRow;
+    // Filas
+    const bodyParts = [];
+    for (let i = 0; i < seriesStates.length; i++) {
+      const s = seriesStates[i];
+      const [r, g, bl] = rgbCache[i];
+      const colorHex = colorFor(s, i);
+      bodyParts.push('<tr><td class="state-name"><span class="swatch" style="background:', colorHex, ';"></span>', stateLabel(s), '</td>');
+      const row = matrix[i];
+      for (let j = 0; j < keys.length; j++) {
+        const v = row[j];
+        if (!v) { bodyParts.push('<td class="zero">·</td>'); continue; }
+        const tot = totalsByBucket[j];
+        const pct = tot > 0 ? (v / tot) * 100 : 0;
+        const alpha = Math.min(0.6, 0.08 + (pct / 100) * 0.55).toFixed(2);
+        bodyParts.push('<td class="heat" style="background:rgba(', r, ',', g, ',', bl, ',', alpha, ');">', fmtNum(v), '<span class="pct">', pct.toFixed(0), '%</span></td>');
+      }
+      const totalDisplay = s === '__OTROS__'
+        ? sortedStates.slice(TOP_N_STATES).reduce((a, x) => a + (totalByState[x] || 0), 0)
+        : (totalByState[s] || 0);
+      const pctTotal = grandTotal > 0 ? (totalDisplay / grandTotal) * 100 : 0;
+      bodyParts.push('<td><strong>', fmtNum(totalDisplay), '</strong><span class="pct">', pctTotal.toFixed(0), '%</span></td></tr>');
+    }
+    bodyParts.push('<tr class="total-row"><td class="state-name">Total sin precio</td>');
+    for (const t of totalsByBucket) bodyParts.push('<td>', t ? fmtNum(t) : '·', '</td>');
+    bodyParts.push('<td>', fmtNum(grandTotal), '</td></tr>');
+    body.innerHTML = bodyParts.join('');
+  }
 
   // ----- Stacked bar chart -----
   if (statesChart) statesChart.destroy();
@@ -583,7 +605,7 @@ function renderStates(from, to, utms, gran, keys, labels) {
   const datasets = seriesStates.map((s, i) => ({
     type: 'bar',
     label: stateLabel(s),
-    data: keys.map(k => bucket[k][s]),
+    data: Array.from(matrix[i]),
     backgroundColor: colorFor(s, i),
     borderWidth: 0,
     stack: 'states',
@@ -594,6 +616,7 @@ function renderStates(from, to, utms, gran, keys, labels) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { labels: { color: text, font: { size: 11 }, boxWidth: 12 }, position: 'bottom' },
@@ -643,9 +666,15 @@ async function init() {
   document.getElementById('dateFrom').max = today;
   document.getElementById('dateTo').min = DATA.minDate;
   document.getElementById('dateTo').max = today;
-  document.getElementById('dateFrom').addEventListener('change', render);
-  document.getElementById('dateTo').addEventListener('change', render);
-  document.querySelectorAll('input[name="gran"]').forEach(r => r.addEventListener('change', render));
+  // Debounce: evita renders dobles cuando cambian from y to en sucesión rápida
+  let renderTimer = null;
+  const renderDebounced = () => {
+    if (renderTimer) clearTimeout(renderTimer);
+    renderTimer = setTimeout(() => { renderTimer = null; render(); }, 80);
+  };
+  document.getElementById('dateFrom').addEventListener('change', renderDebounced);
+  document.getElementById('dateTo').addEventListener('change', renderDebounced);
+  document.querySelectorAll('input[name="gran"]').forEach(r => r.addEventListener('change', renderDebounced));
 
   buildUtmList();
   render();
