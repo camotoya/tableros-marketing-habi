@@ -148,13 +148,6 @@
     </div>
   </div>
   <div class="control-card">
-    <div class="control-label">Vista <button type="button" class="help-btn" onclick="document.getElementById('helpVista').showModal()" aria-label="¿Qué significa Events vs Cohort?">?</button></div>
-    <div class="filter-bar">
-      <label><input type="radio" name="mode" value="evt" checked onchange="onUpdate()"> Events</label>
-      <label><input type="radio" name="mode" value="coh" onchange="onUpdate()"> Cohort</label>
-    </div>
-  </div>
-  <div class="control-card">
     <div class="control-label">Temporalidad <button type="button" class="help-btn" onclick="document.getElementById('helpGran').showModal()" aria-label="Explicación de temporalidades">?</button></div>
     <select class="granularity" id="granSelect" onchange="onUpdate()">
       <option value="D">Diario</option>
@@ -215,6 +208,13 @@
   <div class="qc-card"><div class="qc-title" id="afcTitle9">—</div><div class="qc-wrap"><canvas id="afc9"></canvas></div></div>
   <div class="qc-card"><div class="qc-title" id="afcTitle10">—</div><div class="qc-wrap"><canvas id="afc10"></canvas></div></div>
 </div>
+<div class="quality-charts cols-5">
+  <div class="qc-card"><div class="qc-title" id="afcTitle11">—</div><div class="qc-wrap"><canvas id="afc11"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle12">—</div><div class="qc-wrap"><canvas id="afc12"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle13">—</div><div class="qc-wrap"><canvas id="afc13"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle14">—</div><div class="qc-wrap"><canvas id="afc14"></canvas></div></div>
+  <div class="qc-card"><div class="qc-title" id="afcTitle15">—</div><div class="qc-wrap"><canvas id="afc15"></canvas></div></div>
+</div>
 
 <h2 class="section-heading">Dónde caen los leads Cal MM sin Inmo</h2>
 <div class="table-container">
@@ -223,7 +223,7 @@
 
 <dialog id="helpRegistros" class="help-dialog">
   <h3>Registros</h3>
-  <p>Cantidad total de registros creados en el período (<code>COUNT(*)</code> sobre <code>tabla_inmuebles_general</code>). <strong>Incluye filas sin NID</strong>. Siempre se mide por <code>fecha_creacion</code>, igual en Cohort y Events.</p>
+  <p>Cantidad total de registros creados en el período (<code>COUNT(*)</code> sobre <code>tabla_inmuebles_general</code>). <strong>Incluye filas sin NID</strong>. Se mide por <code>fecha_creacion</code>.</p>
   <p>Filtra por las 6 fuentes del tablero: WEB, Leadforms, Estudio Inmueble, CRM(CO)/Propiedades(MX), Broker, Comercial.</p>
   <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
 </dialog>
@@ -238,7 +238,7 @@
 <dialog id="helpCalInmo" class="help-dialog">
   <h3>Calificados Inmo</h3>
   <p>Leads que pasaron por el backbone de Inmobiliaria y quedaron calificados. En histórico: primera entrada a <code>state_id = 20</code> (<em>no_gestionado</em>) en <code>habi_db_history_state_real_estate</code>.</p>
-  <p><strong>Cohort</strong>: leads creados en el período que alguna vez calificaron Inmo.<br><strong>Events</strong>: primera calificación Inmo que ocurrió en el período.</p>
+  <p>Leads creados en el período que alguna vez calificaron Inmo (agrupados por <strong>fecha de creación</strong>).</p>
   <p>Este funnel arrancó el <strong>2026-03-12</strong>. Antes de esa fecha el BB Inmo no evaluaba, por eso aparece en ~0%.</p>
   <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
 </dialog>
@@ -246,7 +246,7 @@
 <dialog id="helpCalMm" class="help-dialog">
   <h3>Calificados MM</h3>
   <p>Leads que pasaron por el backbone de Market Maker y quedaron calificados. En histórico: primera entrada a <code>estado_id IN (20, 63)</code> (<em>no_gestionado</em> o <em>sin_pricing_inicial</em>) en la tabla histórica de MM.</p>
-  <p><strong>Cohort</strong>: leads creados en el período que alguna vez calificaron MM.<br><strong>Events</strong>: primera calificación MM que ocurrió en el período.</p>
+  <p>Leads creados en el período que alguna vez calificaron MM (agrupados por <strong>fecha de creación</strong>).</p>
   <p>El BB MM fue reemplazado el <strong>2026-03-12</strong>: el DMN nuevo (<code>ibuyer_decision_co.dmn</code>) es más estricto que el anterior.</p>
   <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
 </dialog>
@@ -301,14 +301,6 @@
   <p><strong>Trimestre</strong>: trimestre calendario. Últimos 25.</p>
   <p><strong>Año</strong>: año calendario. Historia completa.</p>
   <p>El día de hoy no se incluye en ninguna granularidad — datos parciales del día actual quedan fuera. El período en curso (ej. la semana o mes actual) sí aparece pero con datos parciales, marcado con asterisco e itálica en el encabezado.</p>
-  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
-</dialog>
-
-<dialog id="helpVista" class="help-dialog">
-  <h3>Cohort vs Events</h3>
-  <p><strong>Cohort</strong>: todo agrupado por <strong>fecha de creación</strong> del lead. Los calificados del período son los leads creados en ese período que, en algún momento, llegaron a un estado calificado — sin importar cuándo ocurrió esa calificación.</p>
-  <p><strong>Events</strong>: los calificados agrupados por la <strong>fecha del evento</strong>, es decir, cuándo ocurrió la primera entrada al estado calificado. Un lead creado en enero que calificó en marzo cuenta en marzo, no en enero.</p>
-  <p>Registros y Registros con NID no cambian entre modos — siempre van por fecha de creación.</p>
   <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
 </dialog>
 
@@ -484,7 +476,6 @@ function aggregate(gran, country, selIds) {
   return Object.values(periodSet).sort((a, b) => a.p.localeCompare(b.p));
 }
 
-function getMode() { return document.querySelector('input[name="mode"]:checked').value; }
 
 function helpCell(id) {
   return `<td><button type="button" class="help-btn" onclick="document.getElementById('${id}').showModal()" aria-label="Ayuda">?</button></td>`;
@@ -512,17 +503,17 @@ function renderPctRow(label, values, denominators, helpId) {
 function fmt(n) { return n.toLocaleString('es-MX'); }
 
 const AF_CHARTS = {};
-const AF_PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#38bdf8','#818cf8','#94a3b8'];
+const AF_PALETTE = ['#f87171','#fbbf24','#34d399','#60a5fa','#a78bfa','#f472b6','#fb923c','#38bdf8','#818cf8','#2dd4bf','#c084fc','#f43f5e','#22d3ee','#facc15','#94a3b8'];
 
 function clearAntifunnelCharts() {
   Object.keys(AF_CHARTS).forEach(id => { AF_CHARTS[id].destroy(); delete AF_CHARTS[id]; });
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= 15; i++) {
     const t = document.getElementById('afcTitle' + i);
     if (t) t.textContent = '—';
   }
 }
 
-function renderAntifunnelTop10(periods, gran, denoms) {
+function renderAntifunnelTop14(periods, gran, denoms) {
   const country = getCountry();
   const selIds = getSelFuentes();
   const periodSet = new Set(periods);
@@ -541,10 +532,10 @@ function renderAntifunnelTop10(periods, gran, denoms) {
     byState[r.state_id].perP[r.p] = r.n;
   });
   const allStates = Object.values(byState).sort((a, b) => b.total - a.total);
-  const top9 = allStates.slice(0, 9);
-  const rest = allStates.slice(9);
+  const top14 = allStates.slice(0, 14);
+  const rest = allStates.slice(14);
 
-  // Serie "Otros" = suma de los no top-9 por período
+  // Serie "Otros" = suma de los no top-14 por período
   const otrosPerP = {};
   rest.forEach(s => {
     Object.entries(s.perP).forEach(([p, n]) => { otrosPerP[p] = (otrosPerP[p] || 0) + n; });
@@ -555,6 +546,17 @@ function renderAntifunnelTop10(periods, gran, denoms) {
 
   // Destruir charts existentes antes de redibujar
   Object.keys(AF_CHARTS).forEach(id => { AF_CHARTS[id].destroy(); delete AF_CHARTS[id]; });
+
+  // Eje Y compartido: 0 → techo del estado #1 (con padding), para que las 15 gráficas sean comparables
+  let sharedYMax = 2;
+  if (top14[0]) {
+    const topPcts = periods.map((p, j) => (denoms[j] > 0 && top14[0].perP[p]) ? (top14[0].perP[p] / denoms[j]) * 100 : 0);
+    const hi = Math.max(0, ...topPcts);
+    if (hi > 0) {
+      const pad = hi * 0.1;
+      sharedYMax = Math.ceil((hi + pad) / 2) * 2;
+    }
+  }
 
   // Dibuja una mini-gráfica de línea única
   function drawOne(canvasId, titleId, stateName, color, perP, showEmpty) {
@@ -567,15 +569,8 @@ function renderAntifunnelTop10(periods, gran, denoms) {
     if (!ctx) return;
 
     const pcts = periods.map((p, j) => (denoms[j] > 0 && perP[p]) ? (perP[p] / denoms[j]) * 100 : 0);
-    const shown = pcts.filter(v => v > 0);
-    let yMin = 0, yMax;
-    if (shown.length) {
-      const lo = Math.min(...shown), hi = Math.max(...shown);
-      const range = Math.max(hi - lo, 1);
-      const pad = range * 0.25;
-      yMin = Math.max(0, Math.floor((lo - pad) / 2) * 2);
-      yMax = Math.ceil((hi + pad) / 2) * 2;
-    } else if (!showEmpty) return; // si pcts todos 0 y no es "Otros", lo dejamos vacío
+    const hasData = pcts.some(v => v > 0);
+    if (!hasData && !showEmpty) return;
 
     const tc = themeColors();
     AF_CHARTS[canvasId] = new Chart(ctx, {
@@ -597,26 +592,26 @@ function renderAntifunnelTop10(periods, gran, denoms) {
         },
         scales: {
           x: { ticks: { color: tc.tickSmall, font: { size: 9 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 }, grid: { color: tc.grid } },
-          y: { ticks: { color: tc.tickSmall, font: { size: 9 }, callback: v => v + '%' }, grid: { color: tc.grid }, min: yMin, max: yMax }
+          y: { ticks: { color: tc.tickSmall, font: { size: 9 }, callback: v => v + '%' }, grid: { color: tc.grid }, min: 0, max: sharedYMax }
         }
       }
     });
   }
 
-  // Primeros 9: un estado cada uno
-  for (let i = 0; i < 9; i++) {
+  // Primeros 14: un estado cada uno
+  for (let i = 0; i < 14; i++) {
     const canvasId = 'afc' + (i + 1);
     const titleId  = 'afcTitle' + (i + 1);
-    if (top9[i]) {
-      drawOne(canvasId, titleId, top9[i].state_name, AF_PALETTE[i], top9[i].perP, false);
+    if (top14[i]) {
+      drawOne(canvasId, titleId, top14[i].state_name, AF_PALETTE[i], top14[i].perP, false);
     } else {
       const t = document.getElementById(titleId);
       if (t) { t.textContent = '—'; t.removeAttribute('title'); }
     }
   }
 
-  // 10: "Otros" (siempre, aunque esté vacío)
-  drawOne('afc10', 'afcTitle10', `Otros (${rest.length} estados)`, AF_PALETTE[9], otrosPerP, true);
+  // 15: "Otros" (siempre, aunque esté vacío)
+  drawOne('afc15', 'afcTitle15', `Otros (${rest.length} estados)`, AF_PALETTE[14], otrosPerP, true);
 }
 
 function renderMmSinInmo(periods, gran, cohortMmVals) {
@@ -707,8 +702,8 @@ function renderAntifunnel(periods, gran, trs) {
   let tb = '';
   states.forEach((s, i) => {
     const values = periods.map(p => s.perP[p] || 0);
-    const cls = i < 9 ? 'row-stage row-in-chart' : 'row-stage';
-    const idx = i < 9 ? (i + 1) : '';
+    const cls = i < 14 ? 'row-stage row-in-chart' : 'row-stage';
+    const idx = i < 14 ? (i + 1) : '';
     tb += `<tr class="${cls}"><td>${idx}</td><td>${s.state_name}</td>${heatCells(values, denoms, true)}</tr>`;
   });
   tbody.innerHTML = tb;
@@ -811,12 +806,11 @@ function render(rows, gran) {
   const sortedRows = periods.map(p => rows.find(x => x.p === p));
   const trs = sortedRows.map(r => r.tr);
 
-  const mode = getMode();
-  const inmoField       = mode === 'evt' ? 'e_cal_inmo'       : 'cal_inmo';
-  const mmField         = mode === 'evt' ? 'e_cal_mm'         : 'cal_mm';
-  const mmNoInmoField   = mode === 'evt' ? 'e_cal_mm_no_inmo' : 'cal_mm_no_inmo';
+  const inmoField     = 'cal_inmo';
+  const mmField       = 'cal_mm';
+  const mmNoInmoField = 'cal_mm_no_inmo';
   const mmVals = sortedRows.map(r => r[mmField]);
-  const cohortMmVals = sortedRows.map(r => r.cal_mm);
+  const cohortMmVals = mmVals;
 
   // Tabla 1: Funnel y calificación
   let funnelTb = '';
@@ -839,7 +833,7 @@ function render(rows, gran) {
   qualityTbody.innerHTML = qualityTb;
 
   const antifunnelDenoms = renderAntifunnel(periods, gran) || periods.map(() => 0);
-  renderAntifunnelTop10(periods, gran, antifunnelDenoms);
+  renderAntifunnelTop14(periods, gran, antifunnelDenoms);
   renderMmSinInmo(periods, gran, cohortMmVals);
 
   // Scroll al extremo derecho en todas las tablas

@@ -1,12 +1,14 @@
--- Funnel Sellers (CO + MX) — Cohort + Events con Calificados MM e Inmo
--- Campos por fila: g, c, f, fn, p, tr, t, cal_mm, cal_inmo, e_cal_mm, e_cal_inmo
---   tr          = Registros totales (COUNT(*), por fecha_creacion, ambos modos)
---   t           = Registros con NID (COUNT DISTINCT nid, por fecha_creacion)
---   cal_mm      = Cohort: leads creados en el período que alguna vez fueron calificados MM
---   cal_inmo    = Cohort: leads creados en el período que alguna vez fueron calificados Inmo
---   e_cal_mm    = Events: primera entrada a calificado MM que ocurrió en el período
---   e_cal_inmo  = Events: primera entrada a calificado Inmo que ocurrió en el período
--- Cohort agrupa por fecha_creacion; Events agrupa por fecha del evento.
+-- Funnel Sellers (CO + MX) — Cohort por fecha de creación
+-- Campos por fila: g, c, f, fn, p, tr, t, cal_mm, cal_inmo, cal_mm_no_inmo, cal_mm_dup, cal_mm_desc, incomp, dup
+--   tr             = Registros totales (COUNT(*), por fecha_creacion)
+--   t              = Registros con NID (COUNT DISTINCT nid, por fecha_creacion)
+--   cal_mm         = leads creados en el período que alguna vez fueron calificados MM
+--   cal_inmo       = leads creados en el período que alguna vez fueron calificados Inmo
+--   cal_mm_no_inmo = calificaron MM pero nunca Inmo (violación MM⊆Inmo)
+--   cal_mm_dup     = calificaron MM y su estado actual es duplicado (1)
+--   cal_mm_desc    = calificaron MM y su estado actual es descarte tardío (3,10,16,33,38,55,56,61,64)
+--   incomp         = estado actual = 7 (incompleto)
+--   dup            = estado actual = 1 (duplicado)
 -- Calificado MM: estado_id IN (20, 63). Calificado Inmo: state_id = 20 (estados terminales).
 
 WITH base AS (
@@ -73,15 +75,6 @@ enriched AS (
   LEFT JOIN cal_mm_dates mc ON mc.c = b.c AND mc.biz_id = b.biz_id
   LEFT JOIN cal_inmo_dates ic ON ic.c = b.c AND ic.biz_id = b.biz_id
   LEFT JOIN current_state cs ON cs.c = b.c AND cs.biz_id = b.biz_id
-),
-
-events_long AS (
-  SELECT c, nid, fuente_id, fuente, 'mm' AS stage, cal_mm_date AS ev_date,
-    (cal_inmo_date IS NULL) AS no_inmo
-    FROM enriched WHERE cal_mm_date IS NOT NULL
-  UNION ALL
-  SELECT c, nid, fuente_id, fuente, 'inmo', cal_inmo_date, FALSE
-    FROM enriched WHERE cal_inmo_date IS NOT NULL
 ),
 
 day_periods AS (SELECT DISTINCT fecha FROM enriched ORDER BY fecha DESC LIMIT 25),
@@ -163,74 +156,11 @@ cohort_yearly AS (
     COUNTIF(cur_state = 7) incomp,
     COUNTIF(cur_state = 1) dup
   FROM enriched GROUP BY c, f, p
-),
-
--- EVENTS (group by ev_date = primera entrada al estado calificado)
-events_daily AS (
-  SELECT 'D' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(ev_date AS STRING) p,
-    COUNTIF(stage='mm') e_cal_mm, COUNTIF(stage='inmo') e_cal_inmo,
-    COUNTIF(stage='mm' AND no_inmo) e_cal_mm_no_inmo
-  FROM events_long WHERE ev_date IN (SELECT fecha FROM day_periods) GROUP BY c, f, p
-),
-events_weekly AS (
-  SELECT 'W' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(ev_date, ISOWEEK) AS STRING) p,
-    COUNTIF(stage='mm') e_cal_mm, COUNTIF(stage='inmo') e_cal_inmo,
-    COUNTIF(stage='mm' AND no_inmo) e_cal_mm_no_inmo
-  FROM events_long WHERE DATE_TRUNC(ev_date, ISOWEEK) IN (SELECT p FROM week_periods) GROUP BY c, f, p
-),
-events_commercial AS (
-  SELECT 'C' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(DATE_TRUNC(ev_date, WEEK(WEDNESDAY)) AS STRING) p,
-    COUNTIF(stage='mm') e_cal_mm, COUNTIF(stage='inmo') e_cal_inmo,
-    COUNTIF(stage='mm' AND no_inmo) e_cal_mm_no_inmo
-  FROM events_long WHERE DATE_TRUNC(ev_date, WEEK(WEDNESDAY)) IN (SELECT p FROM comm_periods) GROUP BY c, f, p
-),
-events_monthly AS (
-  SELECT 'M' g, c, fuente_id f, ANY_VALUE(fuente) fn, FORMAT_DATE('%Y-%m', ev_date) p,
-    COUNTIF(stage='mm') e_cal_mm, COUNTIF(stage='inmo') e_cal_inmo,
-    COUNTIF(stage='mm' AND no_inmo) e_cal_mm_no_inmo
-  FROM events_long WHERE DATE_TRUNC(ev_date, MONTH) IN (SELECT p FROM month_periods) GROUP BY c, f, p
-),
-events_quarterly AS (
-  SELECT 'Q' g, c, fuente_id f, ANY_VALUE(fuente) fn,
-    CONCAT(CAST(EXTRACT(YEAR FROM ev_date) AS STRING), '-Q', CAST(EXTRACT(QUARTER FROM ev_date) AS STRING)) p,
-    COUNTIF(stage='mm') e_cal_mm, COUNTIF(stage='inmo') e_cal_inmo,
-    COUNTIF(stage='mm' AND no_inmo) e_cal_mm_no_inmo
-  FROM events_long WHERE DATE_TRUNC(ev_date, QUARTER) IN (SELECT p FROM quarter_periods) GROUP BY c, f, p
-),
-events_yearly AS (
-  SELECT 'Y' g, c, fuente_id f, ANY_VALUE(fuente) fn, CAST(EXTRACT(YEAR FROM ev_date) AS STRING) p,
-    COUNTIF(stage='mm') e_cal_mm, COUNTIF(stage='inmo') e_cal_inmo,
-    COUNTIF(stage='mm' AND no_inmo) e_cal_mm_no_inmo
-  FROM events_long GROUP BY c, f, p
-),
-
-cohort_all AS (
-  SELECT * FROM cohort_daily UNION ALL SELECT * FROM cohort_weekly UNION ALL SELECT * FROM cohort_commercial
-  UNION ALL SELECT * FROM cohort_monthly UNION ALL SELECT * FROM cohort_quarterly UNION ALL SELECT * FROM cohort_yearly
-),
-events_all AS (
-  SELECT * FROM events_daily UNION ALL SELECT * FROM events_weekly UNION ALL SELECT * FROM events_commercial
-  UNION ALL SELECT * FROM events_monthly UNION ALL SELECT * FROM events_quarterly UNION ALL SELECT * FROM events_yearly
 )
 
-SELECT
-  COALESCE(co.g, ev.g) g,
-  COALESCE(co.c, ev.c) c,
-  COALESCE(co.f, ev.f) f,
-  COALESCE(co.fn, ev.fn) fn,
-  COALESCE(co.p, ev.p) p,
-  COALESCE(co.tr, 0) tr,
-  COALESCE(co.t, 0) t,
-  COALESCE(co.cal_mm, 0) cal_mm,
-  COALESCE(co.cal_inmo, 0) cal_inmo,
-  COALESCE(co.cal_mm_no_inmo, 0) cal_mm_no_inmo,
-  COALESCE(co.cal_mm_dup, 0) cal_mm_dup,
-  COALESCE(co.cal_mm_desc, 0) cal_mm_desc,
-  COALESCE(co.incomp, 0) incomp,
-  COALESCE(co.dup, 0) dup,
-  COALESCE(ev.e_cal_mm, 0) e_cal_mm,
-  COALESCE(ev.e_cal_inmo, 0) e_cal_inmo,
-  COALESCE(ev.e_cal_mm_no_inmo, 0) e_cal_mm_no_inmo
-FROM cohort_all co
-FULL OUTER JOIN events_all ev USING (g, c, f, p)
+SELECT g, c, f, fn, p, tr, t, cal_mm, cal_inmo, cal_mm_no_inmo, cal_mm_dup, cal_mm_desc, incomp, dup
+FROM (
+  SELECT * FROM cohort_daily UNION ALL SELECT * FROM cohort_weekly UNION ALL SELECT * FROM cohort_commercial
+  UNION ALL SELECT * FROM cohort_monthly UNION ALL SELECT * FROM cohort_quarterly UNION ALL SELECT * FROM cohort_yearly
+)
 ORDER BY g, c, f, p
