@@ -208,7 +208,7 @@ jobs:
           import json
           with open('/tmp/funnel_raw.json') as f:
               data = json.load(f)
-          int_keys = ('f','tr','t','cal_mm','cal_inmo','cal_mm_no_inmo','cal_mm_dup','cal_mm_desc','incomp','dup','e_cal_mm','e_cal_inmo','e_cal_mm_no_inmo')
+          int_keys = ('f','tr','t','cal_mm','cal_inmo','cal_mm_no_inmo','cal_mm_dup','cal_mm_desc','incomp','dup')
           for r in data:
               for k in int_keys:
                   r[k] = int(r[k])
@@ -247,11 +247,62 @@ jobs:
           print(f'MM-sin-Inmo rows: {len(data)}')
           "
 
+      - name: Query PMAX MX quality
+        if: always()
+        run: |
+          bq query --use_legacy_sql=false --format=json --max_rows=10000 < pmax-mexico-quality/query.sql > /tmp/pmax_raw.json
+
+      - name: Process PMAX MX data.json
+        if: always()
+        run: |
+          python3 -c "
+          import json
+          with open('/tmp/pmax_raw.json') as f:
+              raw = json.load(f)
+          utms = {}
+          for r in raw:
+              u = r['utm']; c = int(r['con_precio']); s = int(r['sin_precio'])
+              if u not in utms:
+                  utms[u] = {'leads': 0, 'primer': r['dia'], 'ultimo': r['dia']}
+              utms[u]['leads'] += c + s
+              if r['dia'] < utms[u]['primer']: utms[u]['primer'] = r['dia']
+              if r['dia'] > utms[u]['ultimo']: utms[u]['ultimo'] = r['dia']
+          utms_list = sorted([{'utm': k, **v} for k, v in utms.items()], key=lambda x: -x['leads'])
+          rows = [{'d': r['dia'], 'u': r['utm'], 'c': int(r['con_precio']), 's': int(r['sin_precio'])} for r in raw]
+          with open('pmax-mexico-quality/data.json', 'w') as f:
+              json.dump({'utms': utms_list, 'rows': rows}, f, separators=(',', ':'))
+          print(f'PMAX rows: {len(rows)} | UTMs: {len(utms_list)}')
+          "
+
+      - name: Query PMAX MX states (sin precio)
+        if: always()
+        run: |
+          bq query --use_legacy_sql=false --format=json --max_rows=50000 < pmax-mexico-quality/states.sql > /tmp/pmax_states_raw.json
+
+      - name: Process PMAX MX states.json
+        if: always()
+        run: |
+          python3 -c "
+          import json
+          with open('/tmp/pmax_states_raw.json') as f:
+              raw = json.load(f)
+          rows = [{
+              'd': r['dia'],
+              'u': r['utm'],
+              'sid': int(r['state_id']) if r.get('state_id') is not None else 0,
+              'sn': r.get('state_name') or 'sin_estado',
+              'n': int(r['n'])
+          } for r in raw]
+          with open('pmax-mexico-quality/states.json', 'w') as f:
+              json.dump({'rows': rows}, f, separators=(',', ':'))
+          print(f'PMAX states rows: {len(rows)}')
+          "
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add incompletos-colombia/data.json tablero-marketing/data.json tablero-marketing/antifunnel.json tablero-marketing/mm_sin_inmo_states.json okr-marketing/data.json
+          git add incompletos-colombia/data.json tablero-marketing/data.json tablero-marketing/antifunnel.json tablero-marketing/mm_sin_inmo_states.json okr-marketing/data.json pmax-mexico-quality/data.json pmax-mexico-quality/states.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
