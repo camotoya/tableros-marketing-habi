@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
+<title>Creativo Pamela Longoria — Funnel Cohorte</title>
+<style>
+  :root {
+    --bg: #0f172a; --card: #1e293b; --card-hover: #263348;
+    --border: #334155; --border-strong: #4b5563; --row-border: #283548;
+    --text: #e2e8f0; --text-title: #f8fafc;
+    --text-muted: #cbd5e1; --text-muted-2: #94a3b8; --text-muted-3: #64748b;
+    --accent: #818cf8; --accent-on: #f8fafc;
+    --accent-pml: #f472b6;
+    --accent-fbp: #38bdf8;
+    --row-total: #1a2744;
+    --row-mm: #172240;
+    --row-inmo: #172520;
+    --bar-high: #f87171; --bar-med: #fbbf24; --bar-low: #34d399;
+  }
+  body.light {
+    --bg: #f5f7fa; --card: #ffffff; --card-hover: #f1f5f9;
+    --border: #e2e8f0; --border-strong: #cbd5e1; --row-border: #f1f5f9;
+    --text: #334155; --text-title: #0f172a;
+    --text-muted: #475569; --text-muted-2: #64748b; --text-muted-3: #94a3b8;
+    --accent: #6366f1;
+    --accent-pml: #db2777;
+    --accent-fbp: #0284c7;
+    --row-total: #eef2ff;
+    --row-mm: #dbeafe;
+    --row-inmo: #dcfce7;
+    --bar-high: #dc2626; --bar-med: #d97706; --bar-low: #059669;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 24px; transition: background 0.2s, color 0.2s; }
+  .back-link { display: inline-block; color: var(--text-muted-2); text-decoration: none; font-size: 13px; margin-bottom: 16px; padding: 4px 10px; border-radius: 6px; transition: background 0.15s, color 0.15s; }
+  .back-link:hover { background: var(--card); color: var(--accent); }
+  .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 22px; font-weight: 600; color: var(--text-title); }
+  .header h1 span.fbp { color: var(--accent-fbp); }
+  .header h1 span.pml { color: var(--accent-pml); }
+  .header .refresh-info { font-size: 13px; color: var(--text-muted-3); display: flex; align-items: center; gap: 10px; }
+  .theme-btn { background: var(--card); border: 1px solid var(--border); color: var(--text-muted-2); border-radius: 6px; padding: 4px 10px; font-size: 14px; cursor: pointer; transition: background 0.15s, color 0.15s; }
+  .theme-btn:hover { background: var(--card-hover); color: var(--accent); }
+  .subtitle { font-size: 13px; color: var(--text-muted-3); margin-bottom: 20px; }
+
+  .controls { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+  .control-group { display: flex; gap: 8px; align-items: center; }
+  .control-label { font-size: 11px; color: var(--text-muted-2); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .pill-group { display: inline-flex; background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .pill { padding: 7px 14px; font-size: 13px; color: var(--text-muted-2); cursor: pointer; border: none; background: transparent; transition: background 0.15s, color 0.15s; }
+  .pill:hover { background: var(--card-hover); color: var(--text); }
+  .pill.active { background: var(--accent); color: var(--accent-on); font-weight: 600; }
+  .pill + .pill { border-left: 1px solid var(--border); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .kpi { background: var(--card); border-radius: 10px; padding: 18px; border: 1px solid var(--border); }
+  .kpi .label { font-size: 11px; color: var(--text-muted-2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 600; }
+  .kpi .label .tag { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 9px; margin-right: 4px; font-weight: 700; }
+  .kpi .label .tag.fbp { background: var(--accent-fbp); color: white; }
+  .kpi .label .tag.pml { background: var(--accent-pml); color: white; }
+  .kpi .value { font-size: 26px; font-weight: 700; color: var(--text-title); }
+  .kpi .sub { font-size: 12px; color: var(--text-muted-3); margin-top: 4px; }
+
+  .section-title { font-size: 14px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .panel { background: var(--card); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; }
+  .panel-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .panel-head .panel-title { font-size: 14px; font-weight: 600; color: var(--text-title); }
+  .panel-head .panel-title.fbp { color: var(--accent-fbp); }
+  .panel-head .panel-title.pml { color: var(--accent-pml); }
+  .panel-head .panel-sub { font-size: 11px; color: var(--text-muted-3); }
+  .panel table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .panel thead th { background: var(--border); color: var(--text-muted-2); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; padding: 10px 12px; text-align: right; }
+  .panel thead th:first-child { text-align: left; }
+  .panel tbody td { padding: 10px 12px; text-align: right; border-top: 1px solid var(--row-border); }
+  .panel tbody td:first-child { text-align: left; font-weight: 500; color: var(--text-muted); }
+  .panel tbody tr.stage-row td .pct { font-size: 11px; color: var(--text-muted-3); margin-left: 4px; }
+  .panel tbody tr.stage-row.t-row td { font-weight: 700; color: var(--text-title); background: var(--row-total); }
+  .panel tbody tr.stage-row.spend-row td { font-weight: 700; color: var(--text-title); background: var(--row-total); border-bottom: 1px solid var(--border-strong); }
+  .panel tbody tr.stage-row.cpql-row td { font-weight: 600; color: var(--accent); background: var(--row-total); border-bottom: 2px solid var(--border-strong); }
+  .panel tbody tr.stage-row td.col-mm { background: var(--row-mm); }
+  .panel tbody tr.stage-row td.col-inmo { background: var(--row-inmo); }
+  .panel tbody tr.stage-row td.na { color: var(--text-muted-3); font-weight: 400; }
+  .daily-card tbody td.na { color: var(--text-muted-3); }
+  .col-tag { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 700; margin-right: 4px; vertical-align: middle; }
+  .col-tag.tot { background: var(--accent); color: var(--accent-on); }
+  .col-tag.mm { background: var(--accent-fbp); color: white; }
+  .col-tag.inmo { background: var(--bar-low); color: white; }
+
+  .daily-card { background: var(--card); border-radius: 10px; border: 1px solid var(--border); overflow-x: auto; }
+  .daily-card table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+  .daily-card thead th { background: var(--border); color: var(--text-muted-2); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; padding: 10px 10px; text-align: right; white-space: nowrap; }
+  .daily-card thead th:first-child { text-align: left; padding-left: 18px; }
+  .daily-card thead th.sep { border-left: 2px solid var(--border-strong); }
+  .daily-card tbody td { padding: 9px 10px; text-align: right; border-top: 1px solid var(--row-border); white-space: nowrap; }
+  .daily-card tbody td:first-child { text-align: left; font-weight: 500; color: var(--text-muted); padding-left: 18px; }
+  .daily-card tbody td.sep { border-left: 2px solid var(--border-strong); }
+  .daily-card tbody td .pct { font-size: 10px; color: var(--text-muted-3); margin-left: 3px; }
+  .daily-card tbody td .zero { color: var(--text-muted-3); }
+
+  @media (max-width: 900px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .panels { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<a href="../" class="back-link">← Volver (Tableros Marketing Sellers)</a>
+<div class="header">
+  <h1>Funnel <span class="fbp">FB Paid</span> vs <span class="pml">Pamela Longoria</span></h1>
+  <div class="refresh-info">
+    <span id="lastUpdate"></span>
+    <button type="button" class="theme-btn" id="themeToggle" onclick="toggleTheme()" aria-label="Cambiar tema">🌙</button>
+  </div>
+</div>
+<div class="subtitle">
+  MX · Cohorte por fecha de creación desde 2026-04-17 · Universo: <code>mkt_channel_medium='WEB Paid' AND mkt_platform='Facebook'</code> · Pamela: <code>utm_content='pamela_longoria'</code>
+</div>
+<script>
+  (function(){
+    const saved = localStorage.getItem('tablero-theme');
+    if (saved !== 'dark') document.body.classList.add('light');
+    const btn = document.getElementById('themeToggle');
+    if (btn) btn.textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
+  })();
+  function toggleTheme(){
+    document.body.classList.toggle('light');
+    const isLight = document.body.classList.contains('light');
+    localStorage.setItem('tablero-theme', isLight ? 'light' : 'dark');
+    document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+  }
+</script>
+
+<div id="kpis" class="kpis"></div>
+
+<div class="section-title">Acumulado del cohorte</div>
+<div class="panels">
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title fbp">FB Paid (universo completo)</div>
+      <div class="panel-sub" id="fbpSub"></div>
+    </div>
+    <table id="fbpTable">
+      <thead><tr><th>Etapa</th><th><span class="col-tag tot">TOT</span></th><th><span class="col-tag mm">MM</span></th><th><span class="col-tag inmo">INMO</span></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <div class="panel-head">
+      <div class="panel-title pml">Pamela Longoria</div>
+      <div class="panel-sub" id="pmlSub"></div>
+    </div>
+    <table id="pmlTable">
+      <thead><tr><th>Etapa</th><th><span class="col-tag tot">TOT</span></th><th><span class="col-tag mm">MM</span></th><th><span class="col-tag inmo">INMO</span></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="section-title">Diario</div>
+<div class="controls">
+  <div class="control-group">
+    <span class="control-label">Universo</span>
+    <div class="pill-group" id="dailyUniverse">
+      <button class="pill active" data-u="fbp">FB Paid</button>
+      <button class="pill" data-u="pml">Pamela</button>
+    </div>
+  </div>
+  <div class="control-group">
+    <span class="control-label">Rama</span>
+    <div class="pill-group" id="dailyBranch">
+      <button class="pill active" data-b="all">Todos</button>
+      <button class="pill" data-b="mm">MM</button>
+      <button class="pill" data-b="inmo">Inmo</button>
+    </div>
+  </div>
+</div>
+<div class="daily-card">
+  <table id="dailyTable">
+    <thead>
+      <tr>
+        <th>Día</th>
+        <th>Spend (USD)</th>
+        <th class="sep">Registros</th>
+        <th>CPQL</th>
+        <th>CPCA</th>
+        <th>CPVE</th>
+        <th>CPC</th>
+        <th class="sep">Calificados</th>
+        <th>Primer asg</th>
+        <th>Cita</th>
+        <th>Visita</th>
+        <th>Aprobado</th>
+        <th>Aceptó</th>
+        <th>Cierre</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+const STAGES = [
+  {key:'cal', label:'Calificados'},
+  {key:'asg', label:'Primer asignación'},
+  {key:'cit', label:'Cita agendada'},
+  {key:'vis', label:'Visita efectuada'},
+  {key:'apr', label:'Aprobado'},
+  {key:'acp', label:'Aceptó oferta'},
+  {key:'cie', label:'Cierre comprado'},
+];
+// Etapas que NO aplican en Inmo — funnel Inmo termina en Primer asignación.
+const INMO_NA = new Set(['cit','vis','apr','acp','cie']);
+let RAW = [];
+let DAILY_STATE = { u: 'fbp', b: 'all' };
+
+function n(x){ return typeof x === 'string' ? parseInt(x,10) || 0 : (x || 0); }
+function num(x){ return typeof x === 'string' ? parseFloat(x) || 0 : (x || 0); }
+function fmt(v){ return v.toLocaleString('es-MX'); }
+function fmtUSD(v){ return '$' + v.toLocaleString('es-MX', {minimumFractionDigits: 0, maximumFractionDigits: 0}); }
+function fmtUSD2(v){ return '$' + v.toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+function cpql(spend, cal){ return cal > 0 ? spend / cal : null; }
+function fmtCPQL(spend, cal){
+  const v = cpql(spend, cal);
+  return v === null ? '—' : (v >= 100 ? fmtUSD(v) : fmtUSD2(v));
+}
+function pctStr(num, den){
+  if (!den) return '';
+  const p = (100 * num / den);
+  return p < 10 ? p.toFixed(1) + '%' : Math.round(p) + '%';
+}
+
+function aggUniverse(rows, u){
+  const filtered = rows.filter(r => r.u === u);
+  const acc = { t:0, t_mm:0, t_inmo:0, spend:0 };
+  STAGES.forEach(s => { acc[s.key]=0; acc[s.key+'_mm']=0; acc[s.key+'_inmo']=0; });
+  filtered.forEach(r => {
+    acc.spend += num(r.spend);
+    acc.t += n(r.t); acc.t_mm += n(r.t_mm); acc.t_inmo += n(r.t_inmo);
+    STAGES.forEach(s => {
+      acc[s.key] += n(r[s.key]);
+      acc[s.key+'_mm'] += n(r[s.key+'_mm']);
+      acc[s.key+'_inmo'] += n(r[s.key+'_inmo']);
+    });
+  });
+  return acc;
+}
+
+function renderKpis(fbp, pml){
+  const k = document.getElementById('kpis');
+  k.innerHTML = `
+    <div class="kpi"><div class="label"><span class="tag fbp">FB</span>Spend / CPQL</div><div class="value">${fmtUSD(fbp.spend)}</div><div class="sub">CPQL ${fmtCPQL(fbp.spend, fbp.cal)} · ${fmt(fbp.cal)} calificados</div></div>
+    <div class="kpi"><div class="label"><span class="tag fbp">FB</span>Funnel</div><div class="value">${fmt(fbp.t)}</div><div class="sub">${fmt(fbp.cal)} cal · ${fmt(fbp.cal_mm)} MM / ${fmt(fbp.cal_inmo)} Inmo</div></div>
+    <div class="kpi"><div class="label"><span class="tag pml">PML</span>Spend / CPQL</div><div class="value">${fmtUSD(pml.spend)}</div><div class="sub">CPQL ${fmtCPQL(pml.spend, pml.cal)} · ${fmt(pml.cal)} calificados</div></div>
+    <div class="kpi"><div class="label"><span class="tag pml">PML</span>Funnel</div><div class="value">${fmt(pml.t)}</div><div class="sub">${pml.t ? pctStr(pml.t, fbp.t) + ' del universo FB · ' + fmt(pml.cal) + ' cal' : '—'}</div></div>
+  `;
+}
+
+function renderPanel(tableId, agg){
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  let html = '';
+  // Fila Inversión (USD) — spend total compartido entre rama (no se desagrega por MM/Inmo)
+  html += `<tr class="stage-row spend-row">
+    <td>Inversión (USD)</td>
+    <td>${fmtUSD(agg.spend)}</td>
+    <td class="col-mm">${fmtUSD(agg.spend)}</td>
+    <td class="col-inmo">${fmtUSD(agg.spend)}</td>
+  </tr>`;
+  // Fila Registros — mismo número en las 3 columnas (cada funnel parte del 100%)
+  html += `<tr class="stage-row t-row">
+    <td>Registros</td>
+    <td>${fmt(agg.t)}</td>
+    <td class="col-mm">${fmt(agg.t_mm)}</td>
+    <td class="col-inmo">${fmt(agg.t_inmo)}</td>
+  </tr>`;
+  // Fila CPQL — costo por lead calificado en cada rama
+  html += `<tr class="stage-row cpql-row">
+    <td>CPQL</td>
+    <td>${fmtCPQL(agg.spend, agg.cal)}</td>
+    <td class="col-mm">${fmtCPQL(agg.spend, agg.cal_mm)}</td>
+    <td class="col-inmo">${fmtCPQL(agg.spend, agg.cal_inmo)}</td>
+  </tr>`;
+  // Filas CPCA / CPVE / CPC — costo por cita / visita / cierre (solo aplican en MM; Inmo NA)
+  const costRows = [
+    {label: 'CPCA', tot: agg.cit,    mm: agg.cit_mm},
+    {label: 'CPVE', tot: agg.vis,    mm: agg.vis_mm},
+    {label: 'CPC',  tot: agg.cie,    mm: agg.cie_mm},
+  ];
+  costRows.forEach(c => {
+    html += `<tr class="stage-row cpql-row">
+      <td>${c.label}</td>
+      <td>${fmtCPQL(agg.spend, c.tot)}</td>
+      <td class="col-mm">${fmtCPQL(agg.spend, c.mm)}</td>
+      <td class="col-inmo na">—</td>
+    </tr>`;
+  });
+  STAGES.forEach(s => {
+    const tot = agg[s.key], mm = agg[s.key+'_mm'], inmo = agg[s.key+'_inmo'];
+    const inmoNA = INMO_NA.has(s.key);
+    const inmoCell = inmoNA
+      ? `<td class="col-inmo na">—</td>`
+      : `<td class="col-inmo">${fmt(inmo)}<span class="pct">${pctStr(inmo, agg.t_inmo)}</span></td>`;
+    html += `<tr class="stage-row">
+      <td>${s.label}</td>
+      <td>${fmt(tot)}<span class="pct">${pctStr(tot, agg.t)}</span></td>
+      <td class="col-mm">${fmt(mm)}<span class="pct">${pctStr(mm, agg.t_mm)}</span></td>
+      ${inmoCell}
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+}
+
+function renderDaily(){
+  const { u, b } = DAILY_STATE;
+  const rows = RAW.filter(r => r.u === u).sort((a,b) => a.d.localeCompare(b.d));
+  const tbody = document.querySelector('#dailyTable tbody');
+  if (!rows.length){
+    tbody.innerHTML = `<tr><td colspan="14" style="padding:24px;color:var(--text-muted-3);text-align:center">Sin datos para este universo</td></tr>`;
+    return;
+  }
+  let html = '';
+  // sufijo por rama
+  const sfx = b === 'all' ? '' : '_' + b;
+  // T column: para Total = t total, para MM = t_mm, para Inmo = t_inmo
+  const tKey = b === 'all' ? 't' : 't_' + b;
+  function stageCells(r, t, sfx) {
+    return STAGES.map((s, i) => {
+      // Si estamos viendo rama Inmo y la etapa no aplica → "—"
+      if (b === 'inmo' && INMO_NA.has(s.key)){
+        const cls = i === 0 ? ' class="sep na"' : ' class="na"';
+        return `<td${cls}>—</td>`;
+      }
+      const v = n(r[s.key + sfx]);
+      const classes = [];
+      if (i === 0) classes.push('sep');
+      if (v === 0) classes.push('zero');
+      const cls = classes.length ? ` class="${classes.join(' ')}"` : '';
+      const pct = (t && v) ? `<span class="pct">${pctStr(v, t)}</span>` : '';
+      return `<td${cls}>${fmt(v)}${pct}</td>`;
+    });
+  }
+  // CPCA / CPVE / CPC solo aplican en TOT y MM. En rama Inmo se muestra "—".
+  // Los keys del numerador del cohort: cita, visita y cierre.
+  const COST_KEYS = ['cit','vis','cie'];
+  const costCells = (r, spend) => COST_KEYS.map(k => {
+    if (b === 'inmo') return '<td class="na">—</td>';
+    const v = n(r[b === 'all' ? k : k + '_' + b]);
+    return `<td>${fmtCPQL(spend, v)}</td>`;
+  }).join('');
+  rows.forEach(r => {
+    const t = n(r[tKey]);
+    const spend = num(r.spend);
+    const calForBranch = n(r[b === 'all' ? 'cal' : 'cal_' + b]);
+    html += `<tr>
+      <td>${r.d}</td>
+      <td>${fmtUSD(spend)}</td>
+      <td class="sep">${fmt(t)}</td>
+      <td>${fmtCPQL(spend, calForBranch)}</td>
+      ${costCells(r, spend)}
+      ${stageCells(r, t, sfx).join('')}
+    </tr>`;
+  });
+  // total row
+  const total = rows.reduce((acc, r) => {
+    acc.spend += num(r.spend);
+    acc.t += n(r[tKey]);
+    acc.cal_branch += n(r[b === 'all' ? 'cal' : 'cal_' + b]);
+    COST_KEYS.forEach(k => {
+      acc[k + '_branch'] = (acc[k + '_branch'] || 0) + n(r[b === 'all' ? k : k + '_' + b]);
+    });
+    STAGES.forEach(s => { acc[s.key + sfx] = (acc[s.key + sfx]||0) + n(r[s.key + sfx]); });
+    return acc;
+  }, { t: 0, spend: 0, cal_branch: 0 });
+  const totalCostCells = COST_KEYS.map(k => {
+    if (b === 'inmo') return '<td class="na">—</td>';
+    return `<td>${fmtCPQL(total.spend, total[k + '_branch'])}</td>`;
+  }).join('');
+  html += `<tr style="font-weight:700;background:var(--row-total)">
+    <td>Total</td>
+    <td>${fmtUSD(total.spend)}</td>
+    <td class="sep">${fmt(total.t)}</td>
+    <td>${fmtCPQL(total.spend, total.cal_branch)}</td>
+    ${totalCostCells}
+    ${stageCells(total, total.t, sfx).join('')}
+  </tr>`;
+  tbody.innerHTML = html;
+}
+
+function loadData(rows){
+  RAW = rows;
+  const fbp = aggUniverse(rows, 'fbp');
+  const pml = aggUniverse(rows, 'pml');
+
+  const dates = [...new Set(rows.map(r => r.d))].sort();
+  const span = dates.length ? `${dates[0]} → ${dates[dates.length-1]} (${dates.length}d)` : '';
+  document.getElementById('fbpSub').textContent = span;
+  document.getElementById('pmlSub').textContent = span;
+  document.getElementById('lastUpdate').textContent = `Actualizado: ${new Date().toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'})}`;
+
+  renderKpis(fbp, pml);
+  renderPanel('fbpTable', fbp);
+  renderPanel('pmlTable', pml);
+  renderDaily();
+}
+
+document.querySelectorAll('#dailyUniverse .pill').forEach(p => p.addEventListener('click', () => {
+  document.querySelectorAll('#dailyUniverse .pill').forEach(x => x.classList.remove('active'));
+  p.classList.add('active');
+  DAILY_STATE.u = p.dataset.u;
+  renderDaily();
+}));
+document.querySelectorAll('#dailyBranch .pill').forEach(p => p.addEventListener('click', () => {
+  document.querySelectorAll('#dailyBranch .pill').forEach(x => x.classList.remove('active'));
+  p.classList.add('active');
+  DAILY_STATE.b = p.dataset.b;
+  renderDaily();
+}));
+
+fetch('data.json').then(r => r.json()).then(loadData).catch(() => {
+  document.querySelector('#fbpTable tbody').innerHTML = '<tr><td colspan="4" style="padding:24px;color:var(--bar-high);text-align:center">No se encontró data.json</td></tr>';
+});
+</script>
+</body>
+</html>
