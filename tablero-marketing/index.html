@@ -243,6 +243,15 @@
   <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
 </dialog>
 
+<dialog id="helpAsgInmo" class="help-dialog">
+  <h3>Asignados a Inmo</h3>
+  <p>Leads que dentro del funnel Inmobiliaria tienen al menos un evento de <strong>Primer asignación</strong> (asignados a un seller del equipo Inmo).</p>
+  <p>En CO: <code>funnel_diarios_col</code> con <code>equipo_sellers='Exclusivo inmobiliaria CO'</code> y <code>valor='Primer_asigancion'</code>.<br>
+     En MX: <code>seguimiento_funnel_mex</code> con <code>equipo IN ('Inmobiliaria 1','Inmobiliaria 2','Inmo ciudades MX','Inmobliaria mx','Inmo puebla')</code> y <code>valor='Primer asignacion'</code>.</p>
+  <p>Cohorte por <strong>fecha de creación</strong> del lead. Independiente del BB Inmo (ese mide tipificación; esto mide gestión comercial).</p>
+  <button type="button" class="close-btn" onclick="this.closest('dialog').close()">Cerrar</button>
+</dialog>
+
 <dialog id="helpCalMm" class="help-dialog">
   <h3>Calificados MM</h3>
   <p>Leads que pasaron por el backbone de Market Maker y quedaron calificados. En histórico: primera entrada a <code>estado_id IN (20, 63)</code> (<em>no_gestionado</em> o <em>sin_pricing_inicial</em>) en la tabla histórica de MM.</p>
@@ -459,11 +468,12 @@ function aggregate(gran, country, selIds) {
   const filtered = RAW_DATA.filter(r => r.g === gran && r.c === country && selIds.includes(r.f));
   const periodSet = {};
   filtered.forEach(r => {
-    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, tr: 0, t: 0, cal_mm: 0, cal_inmo: 0, cal_mm_no_inmo: 0, cal_mm_dup: 0, cal_mm_desc: 0, incomp: 0, dup: 0, e_cal_mm: 0, e_cal_inmo: 0, e_cal_mm_no_inmo: 0 };
+    if (!periodSet[r.p]) periodSet[r.p] = { p: r.p, tr: 0, t: 0, cal_mm: 0, cal_inmo: 0, asg_inmo: 0, cal_mm_no_inmo: 0, cal_mm_dup: 0, cal_mm_desc: 0, incomp: 0, dup: 0, e_cal_mm: 0, e_cal_inmo: 0, e_cal_mm_no_inmo: 0 };
     periodSet[r.p].tr += (r.tr || 0);
     periodSet[r.p].t += (r.t || 0);
     periodSet[r.p].cal_mm += (r.cal_mm || 0);
     periodSet[r.p].cal_inmo += (r.cal_inmo || 0);
+    periodSet[r.p].asg_inmo += (r.asg_inmo || 0);
     periodSet[r.p].cal_mm_no_inmo += (r.cal_mm_no_inmo || 0);
     periodSet[r.p].cal_mm_dup += (r.cal_mm_dup || 0);
     periodSet[r.p].cal_mm_desc += (r.cal_mm_desc || 0);
@@ -820,6 +830,7 @@ function render(rows, gran) {
   }).join('') + '</tr>';
   funnelTb += renderPctRow('Registros con NID', sortedRows.map(r => r.t), trs, 'helpRegistrosNid');
   funnelTb += renderPctRow('Calificados Inmo', sortedRows.map(r => r[inmoField]), trs, 'helpCalInmo');
+  funnelTb += renderPctRow('Asignados a Inmo', sortedRows.map(r => r.asg_inmo), trs, 'helpAsgInmo');
   funnelTb += renderPctRow('Calificados MM', sortedRows.map(r => r[mmField]), trs, 'helpCalMm');
   funnelTbody.innerHTML = funnelTb;
 

@@ -1,15 +1,17 @@
 -- Funnel Sellers (CO + MX) — Cohort por fecha de creación
--- Campos por fila: g, c, f, fn, p, tr, t, cal_mm, cal_inmo, cal_mm_no_inmo, cal_mm_dup, cal_mm_desc, incomp, dup
+-- Campos por fila: g, c, f, fn, p, tr, t, cal_mm, cal_inmo, asg_inmo, cal_mm_no_inmo, cal_mm_dup, cal_mm_desc, incomp, dup
 --   tr             = Registros totales (COUNT(*), por fecha_creacion)
 --   t              = Registros con NID (COUNT DISTINCT nid, por fecha_creacion)
 --   cal_mm         = leads creados en el período que alguna vez fueron calificados MM
 --   cal_inmo       = leads creados en el período que alguna vez fueron calificados Inmo
+--   asg_inmo       = leads creados en el período que alguna vez tuvieron Primer asignación dentro del funnel Inmo
 --   cal_mm_no_inmo = calificaron MM pero nunca Inmo (violación MM⊆Inmo)
 --   cal_mm_dup     = calificaron MM y su estado actual es duplicado (1)
 --   cal_mm_desc    = calificaron MM y su estado actual es descarte tardío (3,10,16,33,38,55,56,61,64)
 --   incomp         = estado actual = 7 (incompleto)
 --   dup            = estado actual = 1 (duplicado)
 -- Calificado MM: estado_id IN (20, 63). Calificado Inmo: state_id = 20 (estados terminales).
+-- Asignado Inmo: primer evento valor='Primer_asigancion' (CO) / 'Primer asignacion' (MX) dentro de equipos Inmo.
 
 WITH base AS (
   SELECT 'Colombia' AS c, tig.nid, tig.fuente_id, tig.fuente,
@@ -57,6 +59,27 @@ cal_inmo_dates AS (
   GROUP BY c, biz_id
 ),
 
+-- Asignados Inmo: primer evento de Primer asignación dentro de equipos Inmo del país.
+-- CO: equipo_sellers='Exclusivo inmobiliaria CO', valor='Primer_asigancion' (typo histórico).
+-- MX: equipo IN ('Inmobiliaria 1','Inmobiliaria 2','Inmo ciudades MX','Inmobliaria mx','Inmo puebla'), valor='Primer asignacion'.
+asg_inmo_dates AS (
+  SELECT 'Colombia' AS c, nid, MIN(DATE(fecha)) AS ev_date
+  FROM `papyrus-data.habi_wh_bi.funnel_diarios_col`
+  WHERE equipo_sellers = 'Exclusivo inmobiliaria CO'
+    AND valor = 'Primer_asigancion'
+    AND nid IS NOT NULL
+  GROUP BY c, nid
+
+  UNION ALL
+
+  SELECT 'México' AS c, nid, MIN(DATE(fecha)) AS ev_date
+  FROM `sellers-main-prod.bi_mx.seguimiento_funnel_mex`
+  WHERE equipo IN ('Inmobiliaria 1','Inmobiliaria 2','Inmo ciudades MX','Inmobliaria mx','Inmo puebla')
+    AND valor = 'Primer asignacion'
+    AND nid IS NOT NULL
+  GROUP BY c, nid
+),
+
 -- Estado actual del lead (MM) en OLTP, por país
 current_state AS (
   SELECT 'Colombia' AS c, id AS biz_id, last_estado_id AS st
@@ -70,10 +93,12 @@ enriched AS (
   SELECT b.c, b.nid, b.fuente_id, b.fuente, b.fecha,
     mc.ev_date AS cal_mm_date,
     ic.ev_date AS cal_inmo_date,
+    ai.ev_date AS asg_inmo_date,
     cs.st AS cur_state
   FROM base b
   LEFT JOIN cal_mm_dates mc ON mc.c = b.c AND mc.biz_id = b.biz_id
   LEFT JOIN cal_inmo_dates ic ON ic.c = b.c AND ic.biz_id = b.biz_id
+  LEFT JOIN asg_inmo_dates ai ON ai.c = b.c AND ai.nid = b.nid
   LEFT JOIN current_state cs ON cs.c = b.c AND cs.biz_id = b.biz_id
 ),
 
@@ -89,6 +114,7 @@ cohort_daily AS (
     COUNT(*) tr, COUNT(DISTINCT nid) t,
     COUNTIF(cal_mm_date IS NOT NULL) cal_mm,
     COUNTIF(cal_inmo_date IS NOT NULL) cal_inmo,
+    COUNTIF(asg_inmo_date IS NOT NULL) asg_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cal_inmo_date IS NULL) cal_mm_no_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state = 1) cal_mm_dup,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state IN (3,10,16,33,38,55,56,61,64)) cal_mm_desc,
@@ -101,6 +127,7 @@ cohort_weekly AS (
     COUNT(*) tr, COUNT(DISTINCT nid) t,
     COUNTIF(cal_mm_date IS NOT NULL) cal_mm,
     COUNTIF(cal_inmo_date IS NOT NULL) cal_inmo,
+    COUNTIF(asg_inmo_date IS NOT NULL) asg_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cal_inmo_date IS NULL) cal_mm_no_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state = 1) cal_mm_dup,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state IN (3,10,16,33,38,55,56,61,64)) cal_mm_desc,
@@ -113,6 +140,7 @@ cohort_commercial AS (
     COUNT(*) tr, COUNT(DISTINCT nid) t,
     COUNTIF(cal_mm_date IS NOT NULL) cal_mm,
     COUNTIF(cal_inmo_date IS NOT NULL) cal_inmo,
+    COUNTIF(asg_inmo_date IS NOT NULL) asg_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cal_inmo_date IS NULL) cal_mm_no_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state = 1) cal_mm_dup,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state IN (3,10,16,33,38,55,56,61,64)) cal_mm_desc,
@@ -125,6 +153,7 @@ cohort_monthly AS (
     COUNT(*) tr, COUNT(DISTINCT nid) t,
     COUNTIF(cal_mm_date IS NOT NULL) cal_mm,
     COUNTIF(cal_inmo_date IS NOT NULL) cal_inmo,
+    COUNTIF(asg_inmo_date IS NOT NULL) asg_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cal_inmo_date IS NULL) cal_mm_no_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state = 1) cal_mm_dup,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state IN (3,10,16,33,38,55,56,61,64)) cal_mm_desc,
@@ -138,6 +167,7 @@ cohort_quarterly AS (
     COUNT(*) tr, COUNT(DISTINCT nid) t,
     COUNTIF(cal_mm_date IS NOT NULL) cal_mm,
     COUNTIF(cal_inmo_date IS NOT NULL) cal_inmo,
+    COUNTIF(asg_inmo_date IS NOT NULL) asg_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cal_inmo_date IS NULL) cal_mm_no_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state = 1) cal_mm_dup,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state IN (3,10,16,33,38,55,56,61,64)) cal_mm_desc,
@@ -150,6 +180,7 @@ cohort_yearly AS (
     COUNT(*) tr, COUNT(DISTINCT nid) t,
     COUNTIF(cal_mm_date IS NOT NULL) cal_mm,
     COUNTIF(cal_inmo_date IS NOT NULL) cal_inmo,
+    COUNTIF(asg_inmo_date IS NOT NULL) asg_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cal_inmo_date IS NULL) cal_mm_no_inmo,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state = 1) cal_mm_dup,
     COUNTIF(cal_mm_date IS NOT NULL AND cur_state IN (3,10,16,33,38,55,56,61,64)) cal_mm_desc,
@@ -158,7 +189,7 @@ cohort_yearly AS (
   FROM enriched GROUP BY c, f, p
 )
 
-SELECT g, c, f, fn, p, tr, t, cal_mm, cal_inmo, cal_mm_no_inmo, cal_mm_dup, cal_mm_desc, incomp, dup
+SELECT g, c, f, fn, p, tr, t, cal_mm, cal_inmo, asg_inmo, cal_mm_no_inmo, cal_mm_dup, cal_mm_desc, incomp, dup
 FROM (
   SELECT * FROM cohort_daily UNION ALL SELECT * FROM cohort_weekly UNION ALL SELECT * FROM cohort_commercial
   UNION ALL SELECT * FROM cohort_monthly UNION ALL SELECT * FROM cohort_quarterly UNION ALL SELECT * FROM cohort_yearly
