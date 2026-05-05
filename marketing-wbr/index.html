@@ -219,11 +219,23 @@
         prev:   aPrev[ch]   || { reg: 0, cal: 0, spend: 0, hadSpend: false },
       });
     }
+    // Channels sort in fixed groups; the active sort column orders within each group.
+    // Order: WEB → Estudio Inmueble → lead_forms → Broker/CRM/comercial Direct → otros (UTM no clasificadas).
+    function channelGroup(ch) {
+      if (ch.startsWith('WEB ') || ch === 'WEB') return 0;
+      if (ch.startsWith('Estudio Inmueble')) return 1;
+      if (/^(lead_forms|Lead Forms)/i.test(ch)) return 2;
+      if (/^(Broker|CRM|comercial)/i.test(ch)) return 3;
+      return 4;
+    }
     const ind = INDICATORS.find(i => i.key === STATE.sortKey) || INDICATORS.find(i => i.key === 'reg');
     rows.sort((a, b) => {
+      const ga = channelGroup(a.channel);
+      const gb = channelGroup(b.channel);
+      if (ga !== gb) return ga - gb;
       const va = ind.value(a.actual);
       const vb = ind.value(b.actual);
-      // Nulls always at the bottom regardless of sort direction
+      // Nulls always at the bottom of their group regardless of sort direction
       if (va == null && vb == null) return 0;
       if (va == null) return 1;
       if (vb == null) return -1;
