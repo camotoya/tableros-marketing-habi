@@ -129,6 +129,8 @@
   const STATE = {
     country: localStorage.getItem('wbr-country') || 'co',
     window: parseInt(localStorage.getItem('wbr-window') || '7', 10),
+    sortKey: 'reg',     // default: Registros desc
+    sortDir: 'desc',
     data: null,
   };
 
@@ -217,7 +219,16 @@
         prev:   aPrev[ch]   || { reg: 0, cal: 0, spend: 0, hadSpend: false },
       });
     }
-    rows.sort((a, b) => b.actual.reg - a.actual.reg);
+    const ind = INDICATORS.find(i => i.key === STATE.sortKey) || INDICATORS.find(i => i.key === 'reg');
+    rows.sort((a, b) => {
+      const va = ind.value(a.actual);
+      const vb = ind.value(b.actual);
+      // Nulls always at the bottom regardless of sort direction
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return STATE.sortDir === 'asc' ? va - vb : vb - va;
+    });
 
     // Build two total rows: Performance (paid channels only) + Global (all channels)
     function emptyAgg() { return { reg: 0, cal: 0, spend: 0, hadSpend: false }; }
@@ -342,7 +353,10 @@
       `vs Anterior: <strong>${r.prevStart} → ${r.prevEnd}</strong>`;
 
     let html = '<table class="matrix"><thead><tr><th class="col-channel">Canal</th>';
-    for (const ind of INDICATORS) html += `<th>${ind.label}</th>`;
+    for (const ind of INDICATORS) {
+      const arrow = STATE.sortKey === ind.key ? (STATE.sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+      html += `<th data-sortkey="${ind.key}">${ind.label}${arrow}</th>`;
+    }
     html += '</tr></thead><tbody>';
 
     // Identify the index of the last total row, so we can put a heavier border below it.
@@ -375,6 +389,18 @@
     });
     html += '</tbody></table>';
     wrap.innerHTML = html;
+    wrap.querySelectorAll('th[data-sortkey]').forEach(th => {
+      th.addEventListener('click', () => {
+        const k = th.dataset.sortkey;
+        if (STATE.sortKey === k) {
+          STATE.sortDir = STATE.sortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+          STATE.sortKey = k;
+          STATE.sortDir = 'desc';
+        }
+        render();
+      });
+    });
   }
 
   // Load data
