@@ -142,16 +142,107 @@
     });
   }
 
+  // --- Aggregation ---
+
+  // ISO date math (no Date timezone surprises). Input/output: 'YYYY-MM-DD'.
+  function addDays(iso, n) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + n);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function lastUpdatedDay(byDay) {
+    const days = Object.keys(byDay);
+    return days.length ? days.sort().slice(-1)[0] : null;
+  }
+
+  // For window N: actual = [last - (N-1) … last], prev = [last - (2N-1) … last - N]
+  function windowRanges(lastDay, n) {
+    const actualEnd = lastDay;
+    const actualStart = addDays(actualEnd, -(n - 1));
+    const prevEnd = addDays(actualStart, -1);
+    const prevStart = addDays(prevEnd, -(n - 1));
+    return { actualStart, actualEnd, prevStart, prevEnd };
+  }
+
+  // Sum by channel inside [start, end] inclusive
+  function aggregateRange(byDay, start, end) {
+    const out = {}; // channel -> {reg, cal, spend, hadSpend}
+    for (const day of Object.keys(byDay)) {
+      if (day < start || day > end) continue;
+      for (const [channel, v] of Object.entries(byDay[day])) {
+        const cell = out[channel] || (out[channel] = { reg: 0, cal: 0, spend: 0, hadSpend: false });
+        cell.reg += v.reg || 0;
+        cell.cal += v.cal || 0;
+        if (v.spend != null) { cell.spend += v.spend; cell.hadSpend = true; }
+      }
+    }
+    return out;
+  }
+
+  // Build the matrix model: row per channel + TOTAL, with actual + prev numbers
+  function buildModel() {
+    if (!STATE.data) return null;
+    const byDay = (STATE.data[STATE.country] || {}).by_day || {};
+    const last = lastUpdatedDay(byDay);
+    if (!last) return null;
+    const r = windowRanges(last, STATE.window);
+
+    const aActual = aggregateRange(byDay, r.actualStart, r.actualEnd);
+    const aPrev   = aggregateRange(byDay, r.prevStart,   r.prevEnd);
+
+    const allChannels = new Set([...Object.keys(aActual), ...Object.keys(aPrev)]);
+    const rows = [];
+    for (const ch of allChannels) {
+      rows.push({
+        channel: ch,
+        actual: aActual[ch] || { reg: 0, cal: 0, spend: 0, hadSpend: false },
+        prev:   aPrev[ch]   || { reg: 0, cal: 0, spend: 0, hadSpend: false },
+      });
+    }
+    rows.sort((a, b) => b.actual.reg - a.actual.reg);
+
+    // TOTAL row (sum of channels)
+    const total = {
+      channel: 'TOTAL',
+      actual: { reg: 0, cal: 0, spend: 0, hadSpend: false },
+      prev:   { reg: 0, cal: 0, spend: 0, hadSpend: false },
+    };
+    for (const row of rows) {
+      ['reg', 'cal', 'spend'].forEach(k => {
+        total.actual[k] += row.actual[k];
+        total.prev[k]   += row.prev[k];
+      });
+      total.actual.hadSpend = total.actual.hadSpend || row.actual.hadSpend;
+      total.prev.hadSpend   = total.prev.hadSpend   || row.prev.hadSpend;
+    }
+
+    return { ranges: r, lastDay: last, rows: [total, ...rows] };
+  }
+
   function render() {
-    document.getElementById('matrix').textContent = `país=${STATE.country} ventana=${STATE.window}d (matriz pendiente)`;
-    document.getElementById('periodInfo').textContent = '';
+    const model = buildModel();
+    if (!model) {
+      document.getElementById('matrix').textContent = 'sin datos';
+      return;
+    }
+    const r = model.ranges;
+    document.getElementById('periodInfo').innerHTML =
+      `Actual: <strong>${r.actualStart} → ${r.actualEnd}</strong> · ` +
+      `vs Anterior: <strong>${r.prevStart} → ${r.prevEnd}</strong>`;
+
+    // Temporary: dump model to the matrix area for visual inspection
+    document.getElementById('matrix').textContent =
+      JSON.stringify(model.rows.slice(0, 5), null, 2);
+    console.log('WBR model:', model);
   }
 
   // Load data
   fetch('data.json')
     .then(r => r.json())
     .then(d => { STATE.data = d; syncPills(); render(); })
-    .catch(err => { document.getElementById('matrix').textContent = 'Error cargando datos: ' + err; });
+    .catch(err => { syncPills(); document.getElementById('matrix').textContent = 'Error cargando datos: ' + err; });
 </script>
 </body>
 </html>
