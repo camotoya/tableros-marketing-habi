@@ -11,7 +11,11 @@ WITH utm_dedup AS (
 
 SELECT
   CAST(i.date AS STRING) AS dia,
-  m.mkt_channel_medium AS channel,
+  -- lead_forms collapsed (Paid + Direct) into a single channel, matches query_leads.sql
+  CASE
+    WHEN m.mkt_channel_medium IN ('lead_forms Paid', 'lead_forms Direct') THEN 'lead_forms'
+    ELSE m.mkt_channel_medium
+  END AS channel,
   ROUND(SUM(i.spend), 0) AS spend
 FROM `papyrus-data.habi_wh_bi.resumen_inversiones_mkt_co` i
 LEFT JOIN utm_dedup m ON i.campana = m.mkt_campaign_name

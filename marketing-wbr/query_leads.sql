@@ -14,6 +14,8 @@ leads AS (
     g.negocio_id,
     DATE(g.fecha_creacion) AS dia,
     CASE
+      -- lead_forms is collapsed (Paid + Direct) into a single channel
+      WHEN g.fuente IN ('lead_forms', 'Lead Forms') THEN 'lead_forms'
       WHEN g.campana_mercadeo IS NULL OR g.campana_mercadeo = ''
         THEN CONCAT(g.fuente, ' Direct')
       WHEN m.mkt_channel_medium IS NULL OR m.mkt_channel_medium = ''
