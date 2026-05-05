@@ -67,7 +67,9 @@
   table.matrix th, table.matrix td { padding: 10px 14px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
   table.matrix th { background: var(--bg); color: var(--text-muted); font-weight: 500; cursor: pointer; user-select: none; position: sticky; top: 0; z-index: 2; }
   table.matrix th.col-channel, table.matrix td.col-channel { text-align: left; color: var(--text); }
-  table.matrix tbody tr.total td { font-weight: 700; color: var(--text-title); background: var(--bg); }
+  table.matrix tbody tr.total td { font-weight: 700; color: var(--text-title); background: var(--bg); position: sticky; z-index: 1; }
+  table.matrix tbody tr.total.total-perf td { top: 41px; }
+  table.matrix tbody tr.total.total-all td  { top: 82px; }
   table.matrix tbody tr.total.total-last td { border-bottom: 2px solid var(--border); }
   table.matrix td .val { display: block; color: var(--text-title); font-weight: 500; }
   table.matrix td .delta { display: block; font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -349,9 +351,12 @@
 
     model.rows.forEach((row, i) => {
       const cls = [];
-      if (row.isTotal) cls.push('total');
+      if (row.isTotal) {
+        cls.push('total');
+        cls.push(row.channel === 'TOTAL Performance' ? 'total-perf' : 'total-all');
+      }
       if (i === lastTotalIdx) cls.push('total-last');
-      html += `<tr class="${cls.join(' ')}"><td class="col-channel">${escapeHtml(row.channel)}</td>`;
+      html += `<tr class="${cls.filter(Boolean).join(' ')}"><td class="col-channel">${escapeHtml(row.channel)}</td>`;
       for (const ind of INDICATORS) {
         const actualVal = ind.value(row.actual);
         const prevVal   = ind.value(row.prev);
@@ -361,7 +366,8 @@
         const dim       = (actualVal == null) ? 'dim' : '';
         const tip       = `Actual: ${ind.fmt(actualVal)} · Anterior: ${ind.fmt(prevVal)}` +
                           (delta != null && delta !== Infinity ? ` · Δ ${(delta * 100).toFixed(1)}%` : '');
-        html += `<td class="${color} ${dim}" title="${escapeHtml(tip)}">` +
+        const tdCls = [color, dim].filter(Boolean).join(' ');
+        html += `<td class="${tdCls}" title="${escapeHtml(tip)}">` +
                 `<span class="val">${valStr}</span>` +
                 `<span class="delta">${fmtDelta(delta)}</span></td>`;
       }
