@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
+<title>WBR 2.0 — Habi</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-hover: #1e2942;
+    --border: #334155;
+    --text-title: #f8fafc;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-muted-2: #64748b;
+    --accent: #818cf8;
+    --good-bg: rgba(22, 163, 74, 0.18);
+    --good-fg: #4ade80;
+    --bad-bg: rgba(220, 38, 38, 0.18);
+    --bad-fg: #f87171;
+  }
+  body.light {
+    --bg: #f1f5f9;
+    --card: #ffffff;
+    --card-hover: #eef2ff;
+    --border: #cbd5e1;
+    --text-title: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-muted-2: #94a3b8;
+    --accent: #4f46e5;
+    --good-bg: rgba(22, 163, 74, 0.22);
+    --good-fg: #166534;
+    --bad-bg: rgba(220, 38, 38, 0.22);
+    --bad-fg: #991b1b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px; transition: background 0.2s, color 0.2s; }
+  .theme-btn { position: fixed; top: 20px; right: 24px; background: var(--card); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; padding: 4px 10px; font-size: 14px; cursor: pointer; z-index: 10; }
+  .theme-btn:hover { color: var(--accent); }
+  .back-link { display: inline-block; margin-bottom: 16px; color: var(--text-muted); text-decoration: none; font-size: 13px; }
+  .back-link:hover { color: var(--accent); }
+  .header { max-width: 1200px; margin: 0 auto 24px; }
+  .header h1 { font-size: 26px; font-weight: 600; color: var(--text-title); margin-bottom: 6px; }
+  .header h1 span { color: var(--accent); }
+  .header p { font-size: 14px; color: var(--text-muted); }
+
+  .controls { max-width: 1200px; margin: 0 auto 20px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+  .control-group { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .control-group label { font-size: 13px; color: var(--text-muted); margin-right: 6px; }
+  .pill { background: transparent; border: 1px solid var(--border); color: var(--text); padding: 6px 14px; border-radius: 20px; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.active { background: var(--accent); color: #0f172a; border-color: var(--accent); font-weight: 600; }
+  .pill:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .period-info { font-size: 13px; color: var(--text-muted-2); margin-left: auto; }
+  .period-info strong { color: var(--text); }
+
+  .matrix-wrap { max-width: 1200px; margin: 0 auto; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .matrix-empty { padding: 48px; text-align: center; color: var(--text-muted); }
+
+  table.matrix { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  table.matrix th, table.matrix td { padding: 6px 12px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  table.matrix th.col-channel, table.matrix td.col-channel { width: 200px; }
+  table.matrix th { background: var(--bg); color: var(--text-muted); font-weight: 500; user-select: none; position: sticky; z-index: 2; }
+  /* Supra (group) header row */
+  table.matrix thead tr.supra th { top: 0; z-index: 3; padding: 6px 12px; font-weight: 600; text-align: center; }
+  table.matrix thead tr.supra th.supra-empty { background: #334155; }
+  body.light table.matrix thead tr.supra th.supra-empty { background: #475569; }
+  table.matrix thead tr.supra th.supra-meta  { background: #1e3a8a; color: #fff; }
+  body.light table.matrix thead tr.supra th.supra-meta  { background: #3b5dc9; color: #fff; }
+  table.matrix thead tr.supra th.supra-week  { background: #92400e; color: #fff; }
+  body.light table.matrix thead tr.supra th.supra-week  { background: #b45309; color: #fff; }
+  table.matrix thead tr.supra th.supra-7s    { background: #134e4a; color: #fff; }
+  body.light table.matrix thead tr.supra th.supra-7s    { background: #0f766e; color: #fff; }
+  /* Second header row (column names) — sticky below supra */
+  table.matrix thead tr:not(.supra) th { top: 30px; }
+  table.matrix thead tr:not(.supra) th:nth-child(1),
+  table.matrix thead tr:not(.supra) th:nth-child(2),
+  table.matrix thead tr:not(.supra) th:nth-child(3) { background: #334155; color: #ffffff; }
+  body.light table.matrix thead tr:not(.supra) th:nth-child(1),
+  body.light table.matrix thead tr:not(.supra) th:nth-child(2),
+  body.light table.matrix thead tr:not(.supra) th:nth-child(3) { background: #475569; color: #ffffff; }
+  table.matrix thead tr:not(.supra) th:nth-child(4),
+  table.matrix thead tr:not(.supra) th:nth-child(5) { background: #1e3a8a; color: #ffffff; }
+  body.light table.matrix thead tr:not(.supra) th:nth-child(4),
+  body.light table.matrix thead tr:not(.supra) th:nth-child(5) { background: #3b5dc9; color: #ffffff; }
+  table.matrix thead tr:not(.supra) th:nth-child(6),
+  table.matrix thead tr:not(.supra) th:nth-child(7) { background: #92400e; color: #ffffff; }
+  body.light table.matrix thead tr:not(.supra) th:nth-child(6),
+  body.light table.matrix thead tr:not(.supra) th:nth-child(7) { background: #b45309; color: #ffffff; }
+  table.matrix thead tr:not(.supra) th:nth-child(8),
+  table.matrix thead tr:not(.supra) th:nth-child(9) { background: #134e4a; color: #ffffff; }
+  body.light table.matrix thead tr:not(.supra) th:nth-child(8),
+  body.light table.matrix thead tr:not(.supra) th:nth-child(9) { background: #0f766e; color: #ffffff; }
+  table.matrix th.col-channel, table.matrix td.col-channel { text-align: left; color: var(--text); }
+  table.matrix tbody tr.total td { font-weight: 700; color: var(--text-title); }
+  table.matrix tbody tr.total.total-all td.col-channel { background: rgba(148, 163, 184, 0.22); }
+  body.light table.matrix tbody tr.total.total-all td.col-channel { background: rgba(100, 116, 139, 0.22); }
+  table.matrix tbody tr.total.total-last td { border-bottom: 2px solid var(--border); }
+  table.matrix td .val { color: var(--text-title); font-weight: 500; }
+  table.matrix td .delta { font-size: 10px; color: var(--text-muted-2); margin-left: 6px; }
+  table.matrix td .delta + .val { margin-left: 8px; }
+  table.matrix td.cell-good { background: var(--good-bg); }
+  table.matrix td.cell-good .delta { color: var(--good-fg); font-weight: 600; }
+  table.matrix td.cell-bad { background: var(--bad-bg); }
+  table.matrix td.cell-bad .delta { color: var(--bad-fg); font-weight: 600; }
+  table.matrix td.dim { color: var(--text-muted-2); }
+  table.matrix tbody tr.total td.cell-good { background: var(--good-bg); }
+  table.matrix tbody tr.total td.cell-bad  { background: var(--bad-bg); }
+  table.matrix tbody tr.row-web    td.col-channel { background: rgba(96, 165, 250, 0.18); }
+  table.matrix tbody tr.row-ei     td.col-channel { background: rgba(251, 191, 36, 0.20); }
+  table.matrix tbody tr.row-lf     td.col-channel { background: rgba(52, 211, 153, 0.20); }
+  table.matrix tbody tr.row-direct td.col-channel { background: rgba(192, 132, 252, 0.20); }
+  table.matrix tbody tr.row-other  td.col-channel { background: rgba(148, 163, 184, 0.18); }
+  body.light table.matrix tbody tr.row-web    td.col-channel { background: rgba(37, 99, 235, 0.22); }
+  body.light table.matrix tbody tr.row-ei     td.col-channel { background: rgba(217, 119, 6, 0.28); }
+  body.light table.matrix tbody tr.row-lf     td.col-channel { background: rgba(5, 150, 105, 0.26); }
+  body.light table.matrix tbody tr.row-direct td.col-channel { background: rgba(147, 51, 234, 0.24); }
+  body.light table.matrix tbody tr.row-other  td.col-channel { background: rgba(100, 116, 139, 0.22); }
+
+  /* Channels sub-table — reuses .matrix table styles from above */
+  .channels-wrap { max-width: 1200px; margin: 18px auto 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .channels-wrap.empty { display: none; }
+  .channels-wrap .channels-title { padding: 10px 14px; font-size: 13px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  .channels-wrap .channels-title strong { color: var(--text-title); }
+  /* Charts row */
+  .charts-row { max-width: 1200px; margin: 18px auto 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+  .chart-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .chart-card .title { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .chart-card .last-val { font-size: 18px; color: var(--text-title); font-weight: 600; margin-top: 4px; }
+  .chart-card .sub { font-size: 11px; color: var(--text-muted-2); margin-top: 2px; }
+  .chart-card svg { width: 100%; height: 53px; display: block; margin-top: 6px; }
+  .chart-tooltip { position: fixed; pointer-events: none; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; font-size: 11px; color: var(--text-title); z-index: 100; opacity: 0; transition: opacity 0.1s; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; }
+  .chart-tooltip.visible { opacity: 1; }
+  .charts-filter-info { max-width: 1200px; margin: 14px auto 0; font-size: 12px; color: var(--text-muted-2); }
+  .charts-filter-info .pill-clear { margin-left: 10px; padding: 2px 10px; border-radius: 12px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text-muted); font-size: 11px; }
+  .charts-filter-info .pill-clear:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Clickable rows + active filter highlight */
+  table.matrix tbody tr[data-fuente], table.matrix tbody tr[data-channel], table.matrix tbody tr[data-platform] { cursor: pointer; }
+  table.matrix tbody tr[data-fuente]:hover td,
+  table.matrix tbody tr[data-channel]:hover td,
+  table.matrix tbody tr[data-platform]:hover td { outline: 1px solid var(--accent); outline-offset: -1px; }
+  table.matrix tbody tr.row-selected td { box-shadow: inset 0 0 0 2px var(--accent); }
+
+  footer { max-width: 1200px; margin: 32px auto 0; font-size: 12px; color: var(--text-muted-2); text-align: center; }
+</style>
+</head>
+<body>
+  <button type="button" class="theme-btn" id="themeToggle" onclick="toggleTheme()" aria-label="Cambiar tema">🌙</button>
+
+  <a href="https://camotoya.github.io/tableros-marketing-habi/" class="back-link">← Volver al hub</a>
+
+  <div class="header">
+    <h1>WBR <span>2.0</span></h1>
+    <p>Asignados semanales por canal. Selecciona la semana a analizar; la variación compara contra la semana inmediatamente anterior.</p>
+  </div>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>País:</label>
+      <button type="button" class="pill active" data-country="co">Colombia</button>
+      <button type="button" class="pill" data-country="mx" disabled title="Próximamente">México</button>
+    </div>
+    <div class="control-group" id="weekPills">
+      <label>Semana:</label>
+      <!-- pills injected by JS -->
+    </div>
+    <div class="period-info" id="periodInfo">cargando…</div>
+  </div>
+
+  <div class="matrix-wrap">
+    <div id="matrix" class="matrix-empty">cargando datos…</div>
+  </div>
+
+  <div class="charts-filter-info" id="chartsFilter"></div>
+  <div class="charts-row" id="chartsRow"></div>
+  <div class="chart-tooltip" id="chartTooltip"></div>
+
+  <div class="channels-wrap" id="channelsWrap"></div>
+
+  <div class="charts-filter-info" id="chartsFilterCh"></div>
+  <div class="charts-row" id="chartsRowCh"></div>
+
+  <div class="channels-wrap" id="platformsWrap"></div>
+
+  <div class="charts-filter-info" id="chartsFilterPl"></div>
+  <div class="charts-row" id="chartsRowPl"></div>
+
+  <footer>habi · marketing analytics · WBR 2.0</footer>
+
+<script>
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    localStorage.setItem('tablero-theme', isLight ? 'light' : 'dark');
+    document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+  }
+  (function initTheme() {
+    const saved = localStorage.getItem('tablero-theme');
+    if (saved !== 'dark') document.body.classList.add('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
+  })();
+
+  // --- State ---
+  const STATE = {
+    country: localStorage.getItem('wbr2-country') || 'co',
+    weekStart: null,        // selected week's Monday, ISO date string. Null = "most recent"
+    fuenteFilter: null,     // null = TOTAL, else a fuente name
+    channelFilter: null,    // null = TOTAL of channels, else a channel name (drives second chart row)
+    platformFilter: null,   // null = TOTAL of platforms, else a platform name (drives third chart row)
+    data: null,
+  };
+
+  // --- Fuentes (fixed row order + group color key) ---
+  const FUENTES = [
+    { name: 'WEB',              group: 'web' },
+    { name: 'Estudio Inmueble', group: 'ei' },
+    { name: 'lead_forms',       group: 'lf' },
+    { name: 'CRM',              group: 'direct' },
+    { name: 'Broker',           group: 'direct' },
+    { name: 'Comercial',        group: 'direct' },
+  ];
+  // Performance fuentes = paid block (matches sheet's "Perfo" row).
+  const PERF_FUENTES = ['WEB', 'Estudio Inmueble', 'lead_forms'];
+
+  // --- Helpers ---
+  function addDays(iso, n) {
+    const [y, m, d] = iso.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + n);
+    return dt.toISOString().slice(0, 10);
+  }
+  function fmtRange(monIso) {
+    const sun = addDays(monIso, 6);
+    const [, mm1, dd1] = monIso.split('-');
+    const [, mm2, dd2] = sun.split('-');
+    return `${dd1}/${mm1} - ${dd2}/${mm2}`;
+  }
+  const FMT_INT = new Intl.NumberFormat('en-US');
+  function fmtInt(n) { return n == null ? '—' : FMT_INT.format(Math.round(n)); }
+  function fmtPp(n) {
+    if (n == null) return '—';
+    const sign = n > 0 ? '+' : '';
+    return sign + n.toFixed(1) + ' pp';
+  }
+  function fmtPct(n) {
+    if (n == null) return '—';
+    return (n * 100).toFixed(1) + '%';
+  }
+  function fmtDelta(d) {
+    if (d == null) return '';
+    if (d === Infinity) return 'Δ nuevo';
+    const sign = d > 0 ? '+' : '';
+    return 'Δ ' + sign + (d * 100).toFixed(1) + '%';
+  }
+  function deltaPct(actual, prev) {
+    if (actual == null || prev == null) return null;
+    if (prev === 0 && actual === 0) return null;
+    if (prev === 0) return Infinity;
+    return (actual - prev) / prev;
+  }
+  function colorClass(delta) {
+    // Asignados — direction up (más es mejor). ±10% threshold.
+    if (delta == null) return '';
+    if (delta === Infinity) return 'cell-good';
+    const t = 0.10;
+    if (delta >  t) return 'cell-good';
+    if (delta < -t) return 'cell-bad';
+    return '';
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // --- Build the model ---
+  function availableWeeks() {
+    if (!STATE.data) return [];
+    const byWeek = (STATE.data[STATE.country] || {}).by_week || {};
+    return Object.keys(byWeek).sort();
+  }
+
+  function selectableWeeks() {
+    // 6 most recent; need an additional prior week as comparison reference
+    const all = availableWeeks();
+    return all.slice(-6);
+  }
+
+  function buildModel() {
+    if (!STATE.data) return null;
+    const country = STATE.data[STATE.country] || {};
+    const byWeek = country.by_week || {};
+    const totalsByWeek = country.totals_by_week || {};
+    const weeks = Object.keys(byWeek).sort();
+    if (!weeks.length) return null;
+
+    const selected = STATE.weekStart || weeks[weeks.length - 1];
+    const idx = weeks.indexOf(selected);
+    if (idx < 0) return null;
+    const prev = idx > 0 ? weeks[idx - 1] : null;
+
+    const a = byWeek[selected] || {};
+    const p = prev ? (byWeek[prev] || {}) : {};
+
+    // Avg over the 7 weeks before the selected one (or fewer if not enough history).
+    const priorWeeks = weeks.slice(Math.max(0, idx - 7), idx);
+    function avg7For(fuenteName) {
+      if (!priorWeeks.length) return null;
+      const sum = priorWeeks.reduce((s, w) => {
+        const cell = byWeek[w][fuenteName];
+        return s + ((cell && cell.asg) || 0);
+      }, 0);
+      return sum / priorWeeks.length;
+    }
+
+    // Build 6 fuente rows in fixed order
+    const rows = FUENTES.map(f => ({
+      channel: f.name,
+      group:   f.group,
+      actual:  (a[f.name] && a[f.name].asg)  != null ? a[f.name].asg  : 0,
+      prev:    (p[f.name] && p[f.name].asg)  != null ? p[f.name].asg  : 0,
+      meta:    a[f.name] ? a[f.name].meta : null,
+      avg7:    avg7For(f.name),
+    }));
+
+    // Totals — asg from sum of fuentes; meta from totals_by_week
+    let totAllA = 0, totAllP = 0, totPerfA = 0, totPerfP = 0;
+    let totAllAvg7 = 0;
+    for (const r of rows) {
+      totAllA += r.actual;
+      totAllP += r.prev;
+      if (r.avg7 != null) totAllAvg7 += r.avg7;
+      if (PERF_FUENTES.includes(r.channel)) {
+        totPerfA += r.actual;
+        totPerfP += r.prev;
+      }
+    }
+    const tw = totalsByWeek[selected] || {};
+
+    return {
+      selected, prev, priorWeeks,
+      rows,
+      totAll:  { channel: 'TOTAL',             isTotal: true, actual: totAllA,  prev: totAllP,  meta: (tw.TOTAL ? tw.TOTAL.meta : null), avg7: priorWeeks.length ? totAllAvg7 : null },
+      totPerf: { channel: 'TOTAL Performance', isTotal: true, actual: totPerfA, prev: totPerfP, meta: (tw.Perfo ? tw.Perfo.meta : null) },
+    };
+  }
+
+  // --- Render ---
+  function renderWeekPills() {
+    const weeks = selectableWeeks();
+    const container = document.getElementById('weekPills');
+    // Clear existing pills (keep label)
+    container.querySelectorAll('.pill').forEach(p => p.remove());
+    // If selected week not in selectable, default to most recent
+    const selected = (STATE.weekStart && weeks.includes(STATE.weekStart)) ? STATE.weekStart : weeks[weeks.length - 1];
+    if (selected !== STATE.weekStart) STATE.weekStart = selected;
+
+    for (const w of weeks) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'pill' + (w === STATE.weekStart ? ' active' : '');
+      btn.dataset.week = w;
+      btn.textContent = fmtRange(w);
+      btn.addEventListener('click', () => {
+        STATE.weekStart = w;
+        localStorage.setItem('wbr2-week', w);
+        renderWeekPills();
+        render();
+      });
+      container.appendChild(btn);
+    }
+  }
+
+  function render() {
+    const model = buildModel();
+    const wrap = document.getElementById('matrix');
+    if (!model) { wrap.className = 'matrix-empty'; wrap.textContent = 'sin datos'; return; }
+    wrap.className = '';
+
+    const sel = model.selected;
+    const prv = model.prev;
+    document.getElementById('periodInfo').innerHTML =
+      `Semana: <strong>${fmtRange(sel)}</strong>` +
+      (prv ? ` · vs <strong>${fmtRange(prv)}</strong>` : ' · sin semana anterior');
+
+    // Compute aporte pp denominator = totAll.prev
+    const denom = model.totAll.prev;
+    const totalAct = model.totAll.actual;
+
+    function aportePp(actual, prev) {
+      if (denom <= 0) return null;
+      return ((actual - prev) / denom) * 100;
+    }
+    function pesoCal(actual) {
+      if (totalAct <= 0) return null;
+      return actual / totalAct;
+    }
+    // Heatmap intensity for Aporte Δ column (variation pp): max abs across channel rows.
+    const maxAbsAporte = model.rows.reduce((mx, r) => {
+      const a = aportePp(r.actual, r.prev);
+      return a == null ? mx : Math.max(mx, Math.abs(a));
+    }, 0);
+    function aporteStyleAttr(aporte) {
+      if (aporte == null || aporte === 0 || maxAbsAporte <= 0) return '';
+      const intensity = Math.min(Math.abs(aporte) / maxAbsAporte, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = aporte > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+    // Cumplimiento meta: asg/meta. Heatmap centered at 1 (100%).
+    const totalMeta = (model.totAll && model.totAll.meta) || 0;
+    function cumplimiento(actual, meta) {
+      if (meta == null || meta <= 0) return null;
+      return actual / meta;
+    }
+    function aporteMeta(actual, meta) {
+      if (meta == null || totalMeta <= 0) return null;
+      return ((actual - meta) / totalMeta) * 100;
+    }
+    const maxAbsCumpl = model.rows.reduce((mx, r) => {
+      const c = cumplimiento(r.actual, r.meta);
+      return c == null ? mx : Math.max(mx, Math.abs(c - 1));
+    }, 0);
+    function cumplimientoStyleAttr(c) {
+      if (c == null || maxAbsCumpl <= 0) return '';
+      const dev = c - 1;
+      if (dev === 0) return '';
+      const intensity = Math.min(Math.abs(dev) / maxAbsCumpl, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = dev > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+    const maxAbsAporteMeta = model.rows.reduce((mx, r) => {
+      const a = aporteMeta(r.actual, r.meta);
+      return a == null ? mx : Math.max(mx, Math.abs(a));
+    }, 0);
+    function aporteMetaStyleAttr(a) {
+      if (a == null || a === 0 || maxAbsAporteMeta <= 0) return '';
+      const intensity = Math.min(Math.abs(a) / maxAbsAporteMeta, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = a > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+    // Δ vs sem. anterior — heatmap by sign, scaled by max abs across channel rows.
+    const maxAbsDelta = model.rows.reduce((mx, r) => {
+      const d = deltaPct(r.actual, r.prev);
+      return (d == null || d === Infinity) ? mx : Math.max(mx, Math.abs(d));
+    }, 0);
+    function deltaStyleAttr(d) {
+      if (d == null || d === 0 || maxAbsDelta <= 0) return '';
+      if (d === Infinity) return ` style="background: rgba(22, 163, 74, 0.45)"`;
+      const intensity = Math.min(Math.abs(d) / maxAbsDelta, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = d > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+    // Δ vs prom 7 semanas
+    function deltaAvg7(actual, avg7) {
+      if (avg7 == null) return null;
+      if (avg7 === 0 && actual === 0) return null;
+      if (avg7 === 0) return Infinity;
+      return (actual - avg7) / avg7;
+    }
+    function aporteAvg7(actual, avg7) {
+      if (avg7 == null || !model.totAll.avg7 || model.totAll.avg7 <= 0) return null;
+      return ((actual - avg7) / model.totAll.avg7) * 100;
+    }
+    const maxAbsDelta7 = model.rows.reduce((mx, r) => {
+      const d = deltaAvg7(r.actual, r.avg7);
+      return (d == null || d === Infinity) ? mx : Math.max(mx, Math.abs(d));
+    }, 0);
+    function delta7StyleAttr(d) {
+      if (d == null || d === 0 || maxAbsDelta7 <= 0) return '';
+      if (d === Infinity) return ` style="background: rgba(22, 163, 74, 0.45)"`;
+      const intensity = Math.min(Math.abs(d) / maxAbsDelta7, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = d > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+    const maxAbsAporte7 = model.rows.reduce((mx, r) => {
+      const a = aporteAvg7(r.actual, r.avg7);
+      return a == null ? mx : Math.max(mx, Math.abs(a));
+    }, 0);
+    function aporte7StyleAttr(a) {
+      if (a == null || a === 0 || maxAbsAporte7 <= 0) return '';
+      const intensity = Math.min(Math.abs(a) / maxAbsAporte7, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = a > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+
+    function renderRow(row, isTotal, totalKindClass, lastTotal) {
+      const cls = ['' /* placeholder */];
+      if (isTotal) {
+        cls.push('total');
+        cls.push(totalKindClass);
+      } else {
+        cls.push('row-' + (row.group || 'other'));
+      }
+      if (lastTotal) cls.push('total-last');
+
+      const delta  = deltaPct(row.actual, row.prev);
+      const color  = colorClass(delta);
+      const valStr = fmtInt(row.actual);
+      const metaVal = row.meta;
+      const metaStr = metaVal == null ? '—' : fmtInt(metaVal);
+      const cumpl = cumplimiento(row.actual, metaVal);
+      const cumplStr = cumpl == null ? '—' : (cumpl * 100).toFixed(1) + '%';
+      const aporteM = aporteMeta(row.actual, metaVal);
+      const aporteMStr = aporteM == null ? '—' : fmtPp(aporteM);
+      const aporte = aportePp(row.actual, row.prev);
+      const aporteStr = aporte == null ? '—' : fmtPp(aporte);
+      const peso = pesoCal(row.actual);
+      const pesoStr = fmtPct(peso);
+
+      const tipAsg = `Actual: ${fmtInt(row.actual)} · Anterior: ${fmtInt(row.prev)}` +
+                     (delta != null && delta !== Infinity ? ` · Δ ${(delta * 100).toFixed(1)}%` : '');
+      const tipMeta = metaVal == null ? 'Sin meta' : `Meta semanal: ${metaVal}`;
+      const tipCumpl = (metaVal != null && metaVal > 0)
+        ? `${row.actual} / ${metaVal} = ${cumpl == null ? '—' : (cumpl * 100).toFixed(2)}%`
+        : 'Sin meta';
+      const tipAporteMeta = (totalMeta > 0 && metaVal != null)
+        ? `(${row.actual} − ${metaVal}) / ${totalMeta} × 100 = ${aporteM == null ? '—' : aporteM.toFixed(2)} pp`
+        : 'Sin meta';
+      const tipPeso = totalAct > 0
+        ? `${row.actual} / ${totalAct} = ${peso == null ? '—' : (peso * 100).toFixed(2)}%`
+        : '';
+      const tipAporte = (denom > 0)
+        ? `(${row.actual} − ${row.prev}) / ${denom} × 100 = ${aporte == null ? '—' : aporte.toFixed(2)} pp`
+        : '';
+
+      const trCls = cls.filter(Boolean).join(' ');
+      const tipAsgFull = tipAsg + (peso != null ? ` · Peso: ${(peso * 100).toFixed(1)}%` : '');
+      // Meta peso = meta_fuente / TOTAL_meta
+      const metaPeso = (metaVal != null && totalMeta > 0) ? metaVal / totalMeta : null;
+      const metaPesoStr = metaPeso == null ? '' : (metaPeso * 100).toFixed(1) + '%';
+      const tipMetaFull = (metaVal == null) ? 'Sin meta'
+        : `Meta semanal: ${metaVal}` + (metaPeso != null ? ` · Peso: ${(metaPeso * 100).toFixed(1)}%` : '');
+      const delta7  = deltaAvg7(row.actual, row.avg7);
+      const delta7Str = (delta7 == null || delta7 === Infinity) ? (delta7 === Infinity ? 'Δ nuevo' : '—') : 'Δ ' + (delta7 > 0 ? '+' : '') + (delta7 * 100).toFixed(1) + '%';
+      const aporte7 = aporteAvg7(row.actual, row.avg7);
+      const aporte7Str = aporte7 == null ? '—' : fmtPp(aporte7);
+      // TOTAL row: no heatmap on right-side columns
+      const styleCumpl    = isTotal ? '' : cumplimientoStyleAttr(cumpl);
+      const styleAporteM  = isTotal ? '' : aporteMetaStyleAttr(aporteM);
+      const styleDelta    = isTotal ? '' : deltaStyleAttr(delta);
+      const styleAporte   = isTotal ? '' : aporteStyleAttr(aporte);
+      const styleDelta7   = isTotal ? '' : delta7StyleAttr(delta7);
+      const styleAporte7  = isTotal ? '' : aporte7StyleAttr(aporte7);
+      const valCellHtml      = `<td title="${escapeHtml(tipAsgFull)}"><span class="delta">${pesoStr}</span><span class="val">${valStr}</span></td>`;
+      const metaCellHtml     = `<td title="${escapeHtml(tipMetaFull)}">` +
+        (metaVal == null ? `<span class="val">—</span>`
+          : `<span class="delta">${metaPesoStr}</span><span class="val">${metaStr}</span>`) +
+        `</td>`;
+      const cumplCellHtml    = `<td${styleCumpl} title="${escapeHtml(tipCumpl)}"><span class="val">${cumplStr}</span></td>`;
+      const aporteMCellHtml  = `<td${styleAporteM} title="${escapeHtml(tipAporteMeta)}"><span class="val">${aporteMStr}</span></td>`;
+      const deltaCellHtml    = `<td${styleDelta} title="${escapeHtml(tipAsg)}"><span class="val">${fmtDelta(delta) || '—'}</span></td>`;
+      const aporteCellHtml   = `<td${styleAporte} title="${escapeHtml(tipAporte)}"><span class="val">${aporteStr}</span></td>`;
+      const tipDelta7 = (row.avg7 == null) ? 'Sin historial suficiente'
+        : `Actual: ${row.actual} · Prom 7s: ${row.avg7.toFixed(1)}` +
+          (delta7 != null && delta7 !== Infinity ? ` · Δ ${(delta7 * 100).toFixed(1)}%` : '');
+      const tipAporte7 = (model.totAll.avg7 && row.avg7 != null)
+        ? `(${row.actual} − ${row.avg7.toFixed(1)}) / ${model.totAll.avg7.toFixed(1)} × 100 = ${aporte7 == null ? '—' : aporte7.toFixed(2)} pp`
+        : 'Sin historial suficiente';
+      const delta7CellHtml   = `<td${styleDelta7} title="${escapeHtml(tipDelta7)}"><span class="val">${delta7Str}</span></td>`;
+      const aporte7CellHtml  = `<td${styleAporte7} title="${escapeHtml(tipAporte7)}"><span class="val">${aporte7Str}</span></td>`;
+      const dataAttr = isTotal ? '' : ` data-fuente="${escapeHtml(row.channel)}"`;
+      const selected = (!isTotal && STATE.fuenteFilter === row.channel) ? ' row-selected' : '';
+      return `<tr class="${trCls}${selected}"${dataAttr}><td class="col-channel">${escapeHtml(row.channel)}</td>${valCellHtml}${metaCellHtml}${cumplCellHtml}${aporteMCellHtml}${deltaCellHtml}${aporteCellHtml}${delta7CellHtml}${aporte7CellHtml}</tr>`;
+    }
+
+    let html = '<table class="matrix"><thead>' +
+      '<tr class="supra">' +
+        '<th class="supra-empty" colspan="3"></th>' +
+        '<th class="supra-meta"  colspan="2">Vs Meta</th>' +
+        '<th class="supra-week"  colspan="2">Vs semana anterior</th>' +
+        '<th class="supra-7s"    colspan="2">Vs prom. últimas 7 semanas</th>' +
+      '</tr>' +
+      '<tr>' +
+        '<th class="col-channel">Fuente</th>' +
+        '<th>Asignados</th>' +
+        '<th>Meta</th>' +
+        '<th>Variación</th>' +
+        '<th>Aporte (pp)</th>' +
+        '<th>Variación</th>' +
+        '<th>Aporte (pp)</th>' +
+        '<th>Variación</th>' +
+        '<th>Aporte (pp)</th>' +
+      '</tr></thead><tbody>';
+
+    // Order: TOTAL, then 6 fuente rows in fixed order
+    html += renderRow(model.totAll, true, 'total-all', true);
+    for (const r of model.rows) html += renderRow(r, false, '', false);
+    html += '</tbody></table>';
+    wrap.innerHTML = html;
+
+    // Click handlers on fuente rows: toggle filter
+    wrap.querySelectorAll('tr[data-fuente]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const f = tr.dataset.fuente;
+        STATE.fuenteFilter = (STATE.fuenteFilter === f) ? null : f;
+        render();
+      });
+    });
+
+    renderCharts();
+    renderChannels();
+    renderPlatforms();
+  }
+
+  // --- Charts ---
+  const CHART_WEEKS = 8;          // active (used for avg, full-color)
+  const CHART_CONTEXT = 12;       // additional historical weeks shown in gray
+  const CHART_TOTAL = CHART_WEEKS + CHART_CONTEXT;
+
+  function trendSeries(metric, fuente) {
+    const byWeek = (STATE.data[STATE.country] || {}).by_week || {};
+    const weeks = chartWeeks();
+    return weeks.map(w => {
+      const cells = byWeek[w] || {};
+      if (fuente) {
+        const cell = cells[fuente];
+        return cell ? cell[metric] : null;
+      } else {
+        let sum = 0, hasAny = false;
+        for (const c of Object.values(cells)) {
+          if (c[metric] != null) { sum += c[metric]; hasAny = true; }
+        }
+        return hasAny ? sum : null;
+      }
+    });
+  }
+
+  function ratioSeries(numKey, denKey, fuente) {
+    const ns = trendSeries(numKey, fuente);
+    const ds = trendSeries(denKey, fuente);
+    return ns.map((n, i) => {
+      const d = ds[i];
+      return (n != null && d != null && d > 0) ? n / d : null;
+    });
+  }
+
+  function chartWeeks() {
+    const byWeek = (STATE.data[STATE.country] || {}).by_week || {};
+    const all = Object.keys(byWeek).sort();
+    if (!all.length) return [];
+    const sel = STATE.weekStart && all.includes(STATE.weekStart) ? STATE.weekStart : all[all.length - 1];
+    const idx = all.indexOf(sel);
+    return all.slice(Math.max(0, idx - (CHART_TOTAL - 1)), idx + 1);
+  }
+
+  const GRAY = '#9ca3af';
+  const HIGHLIGHT = '#facc15';   // amber yellow — outlines the latest point/bar
+
+  function sparklineLine(values, weeks, color, kind, contextCount) {
+    const w = 200, h = 44;
+    const valid = values.filter(v => v != null);
+    if (valid.length < 2) return `<svg viewBox="0 0 ${w} ${h}"></svg>`;
+    const max = Math.max(...valid), min = Math.min(...valid);
+    const range = (max - min) || (max || 1);
+    const step = w / (values.length - 1);
+    const pts = values.map((v, i) => {
+      if (v == null) return null;
+      return [i * step, h - ((v - min) / range) * (h - 6) - 3, i];
+    }).filter(Boolean);
+
+    // Split points into context (gray) and active (color); overlap one point so segments connect
+    const ctx = pts.filter(p => p[2] < contextCount);
+    const act = pts.filter(p => p[2] >= contextCount - 1); // include last context point for continuity
+    const pathOf = arr => arr.length ? 'M ' + arr.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' L ') : '';
+    const ctxPath = pathOf(ctx);
+    const actPath = pathOf(act);
+    const lastP = pts[pts.length - 1];
+    // Area only for active range
+    const areaPath = act.length
+      ? actPath + ` L ${act[act.length - 1][0].toFixed(1)},${h} L ${act[0][0].toFixed(1)},${h} Z`
+      : '';
+    const segW = w / values.length;
+    const overlays = values.map((v, i) => {
+      if (v == null) return '';
+      const tip = `${fmtRange(weeks[i])}: ${fmtCardValue(v, kind)}`;
+      return `<rect x="${(i * segW).toFixed(1)}" y="0" width="${segW.toFixed(1)}" height="${h}" fill="transparent" data-tip="${escapeHtml(tip)}"></rect>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      ${areaPath ? `<path d="${areaPath}" fill="${color}" opacity="0.18"/>` : ''}
+      ${ctxPath ? `<path d="${ctxPath}" stroke="${GRAY}" stroke-width="1.4" fill="none" opacity="0.7"/>` : ''}
+      ${actPath ? `<path d="${actPath}" stroke="${color}" stroke-width="1.6" fill="none"/>` : ''}
+      ${lastP ? `<circle cx="${lastP[0].toFixed(1)}" cy="${lastP[1].toFixed(1)}" r="3.5" fill="${color}" stroke="${HIGHLIGHT}" stroke-width="2"/>` : ''}
+      ${overlays}
+    </svg>`;
+  }
+
+  function sparklineBar(values, weeks, color, kind, contextCount) {
+    const w = 200, h = 44;
+    const valid = values.filter(v => v != null);
+    if (!valid.length) return `<svg viewBox="0 0 ${w} ${h}"></svg>`;
+    const max = Math.max(...valid, 0);
+    if (max <= 0) return `<svg viewBox="0 0 ${w} ${h}"></svg>`;
+    const barW = w / values.length;
+    const innerW = barW * 0.72;
+    const pad = (barW - innerW) / 2;
+    const lastIdx = values.length - 1;
+    const bars = values.map((v, i) => {
+      if (v == null || v <= 0) return '';
+      const barH = (v / max) * (h - 4);
+      const x = i * barW + pad;
+      const y = h - barH;
+      const tip = `${fmtRange(weeks[i])}: ${fmtCardValue(v, kind)}`;
+      const fill = i < contextCount ? GRAY : color;
+      const opacity = i < contextCount ? '0.55' : '1';
+      const stroke = i === lastIdx ? ` stroke="${HIGHLIGHT}" stroke-width="1.5"` : '';
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${innerW.toFixed(1)}" height="${barH.toFixed(1)}" fill="${fill}" opacity="${opacity}"${stroke} rx="1" data-tip="${escapeHtml(tip)}"></rect>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}</svg>`;
+  }
+
+  function fmtCardValue(v, kind) {
+    if (v == null) return '—';
+    if (kind === 'pct') return (v * 100).toFixed(1) + '%';
+    if (kind === 'money') {
+      if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+      if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'k';
+      return '$' + Math.round(v);
+    }
+    if (kind === 'cpl') {
+      if (v >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+      if (v >= 1e3) return '$' + (v / 1e3).toFixed(1) + 'k';
+      return '$' + v.toFixed(1);
+    }
+    return FMT_INT.format(Math.round(v));
+  }
+
+  const CHARTS = [
+    { title: 'Asignados',      color: '#818cf8', kind: 'int',   chartType: 'bar',  series: f => trendSeries('asg', f) },
+    { title: 'Tasa Reg → Asg', color: '#a78bfa', kind: 'pct',   chartType: 'line', series: f => ratioSeries('asg', 'reg', f) },
+    { title: 'Registros',      color: '#60a5fa', kind: 'int',   chartType: 'bar',  series: f => trendSeries('reg', f) },
+    { title: 'Inversión',      color: '#fbbf24', kind: 'money', chartType: 'line', series: f => trendSeries('spend', f) },
+    { title: 'CPL',            color: '#fb923c', kind: 'cpl',   chartType: 'line', series: f => ratioSeries('spend', 'reg', f) },
+  ];
+
+  function renderCharts() {
+    const filter = STATE.fuenteFilter;
+    const info = document.getElementById('chartsFilter');
+    info.innerHTML = filter
+      ? `Tendencias filtradas a <strong>${escapeHtml(filter)}</strong> <button class="pill-clear" id="clearFilter">limpiar filtro</button>`
+      : `Tendencias del TOTAL (haz click en una fuente de la tabla para filtrar)`;
+    const clearBtn = document.getElementById('clearFilter');
+    if (clearBtn) clearBtn.addEventListener('click', e => { e.stopPropagation(); STATE.fuenteFilter = null; render(); });
+
+    const weeks = chartWeeks();
+    const row = document.getElementById('chartsRow');
+    row.innerHTML = CHARTS.map(c => {
+      const series = c.series(filter);
+      const lastIdx = series.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+      const lastVal = lastIdx == null ? null : series[lastIdx];
+      const lastValStr = fmtCardValue(lastVal, c.kind);
+      // Average uses the 7 PRIOR weeks (excluding the selected/last)
+      const priorValues = series.slice(-CHART_WEEKS, -1).filter(v => v != null);
+      let sub = '';
+      if (lastVal != null && priorValues.length > 0) {
+        const avg = priorValues.reduce((s, v) => s + v, 0) / priorValues.length;
+        if (avg > 0 || (avg === 0 && lastVal > 0)) {
+          if (c.kind === 'pct') {
+            // For ratios: variation in pp + (relative %) vs base
+            const diffPp = (lastVal - avg) * 100;
+            const sign = diffPp > 0 ? '+' : '';
+            const relStr = avg > 0 ? ` (${diffPp / (avg * 100) > 0 ? '+' : ''}${((lastVal - avg) / avg * 100).toFixed(1)}%)` : '';
+            sub = `${sign}${diffPp.toFixed(1)} pp${relStr} vs prom 7s`;
+          } else {
+            const ch = avg > 0 ? (lastVal - avg) / avg : null;
+            if (ch != null) {
+              const sign = ch > 0 ? '+' : '';
+              sub = `${sign}${(ch * 100).toFixed(1)}% vs prom 7s`;
+            }
+          }
+        }
+      }
+      const contextCount = Math.max(0, series.length - CHART_WEEKS);
+      const chartSvg = c.chartType === 'bar'
+        ? sparklineBar(series, weeks, c.color, c.kind, contextCount)
+        : sparklineLine(series, weeks, c.color, c.kind, contextCount);
+      return `<div class="chart-card">
+        <div class="title">${escapeHtml(c.title)}</div>
+        <div class="last-val">${lastValStr}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+        ${chartSvg}
+      </div>`;
+    }).join('');
+  }
+
+  // --- Channels sub-table (same 2-row header + 9 columns as the main table) ---
+  function fuenteToGroup(f) {
+    if (f === 'WEB') return 'web';
+    if (f === 'Estudio Inmueble') return 'ei';
+    if (f === 'lead_forms') return 'lf';
+    if (f === 'CRM' || f === 'Broker' || f === 'Comercial') return 'direct';
+    return 'other';
+  }
+
+  function renderChannels() {
+    const wrap = document.getElementById('channelsWrap');
+    const country = (STATE.data && STATE.data[STATE.country]) || {};
+    const byWeekChannels = country.by_week_channels || {};
+    const allWeeks = Object.keys(byWeekChannels).sort();
+    if (!allWeeks.length) { wrap.className = 'channels-wrap empty'; wrap.innerHTML = ''; return; }
+
+    const sel = STATE.weekStart && allWeeks.includes(STATE.weekStart) ? STATE.weekStart : allWeeks[allWeeks.length - 1];
+    const idx = allWeeks.indexOf(sel);
+    const prev = idx > 0 ? allWeeks[idx - 1] : null;
+    const priorWeeks = allWeeks.slice(Math.max(0, idx - 7), idx); // 7 prior weeks
+
+    const cellsA = byWeekChannels[sel] || {};
+    const cellsP = prev ? (byWeekChannels[prev] || {}) : {};
+    const allChannels = new Set([...Object.keys(cellsA), ...Object.keys(cellsP)]);
+
+    let rows = [...allChannels].map(ch => {
+      const a = cellsA[ch], p = cellsP[ch];
+      const fuente = (a && a.fuente) || (p && p.fuente);
+      let sum = 0, n = 0;
+      for (const pw of priorWeeks) {
+        const c = (byWeekChannels[pw] || {})[ch];
+        if (c) { sum += (c.asg || 0); n++; }
+      }
+      return {
+        channel: ch, fuente,
+        group: fuenteToGroup(fuente),
+        actual: (a && a.asg) || 0,
+        prev:   (p && p.asg) || 0,
+        avg7:   n > 0 ? sum / n : null,
+        meta:   null, // no channel-level meta
+      };
+    });
+
+    const filter = STATE.fuenteFilter;
+    if (filter) rows = rows.filter(r => r.fuente === filter);
+    rows.sort((a, b) => b.actual - a.actual);
+
+    if (!rows.length) {
+      wrap.className = 'channels-wrap';
+      wrap.innerHTML = `<div class="channels-title">Detalle por canal — sin datos para este filtro/semana</div>`;
+      return;
+    }
+
+    // Totals across the visible channel scope (used as denominators for Aportes/Peso)
+    let totA = 0, totP = 0, totAvg7 = 0;
+    for (const r of rows) {
+      totA += r.actual;
+      totP += r.prev;
+      if (r.avg7 != null) totAvg7 += r.avg7;
+    }
+
+    function aportePpCh(actual, prevV)        { return totP > 0 ? ((actual - prevV) / totP) * 100 : null; }
+    function aporteAvg7Ch(actual, avg7)       { return (avg7 != null && totAvg7 > 0) ? ((actual - avg7) / totAvg7) * 100 : null; }
+    function delta7Ch(actual, avg7) {
+      if (avg7 == null) return null;
+      if (avg7 === 0 && actual === 0) return null;
+      if (avg7 === 0) return Infinity;
+      return (actual - avg7) / avg7;
+    }
+    function pesoCh(actual) { return totA > 0 ? actual / totA : null; }
+
+    // Heatmap maxes scoped to channel rows
+    const maxAbsAporte = rows.reduce((mx, r) => {
+      const a = aportePpCh(r.actual, r.prev);
+      return a == null ? mx : Math.max(mx, Math.abs(a));
+    }, 0);
+    const maxAbsDelta = rows.reduce((mx, r) => {
+      const d = deltaPct(r.actual, r.prev);
+      return (d == null || d === Infinity) ? mx : Math.max(mx, Math.abs(d));
+    }, 0);
+    const maxAbsDelta7 = rows.reduce((mx, r) => {
+      const d = delta7Ch(r.actual, r.avg7);
+      return (d == null || d === Infinity) ? mx : Math.max(mx, Math.abs(d));
+    }, 0);
+    const maxAbsAporte7 = rows.reduce((mx, r) => {
+      const a = aporteAvg7Ch(r.actual, r.avg7);
+      return a == null ? mx : Math.max(mx, Math.abs(a));
+    }, 0);
+    function heatmapStyle(v, maxAbs) {
+      if (v == null || v === 0 || maxAbs <= 0) return '';
+      if (v === Infinity) return ` style="background: rgba(22, 163, 74, 0.45)"`;
+      const intensity = Math.min(Math.abs(v) / maxAbs, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = v > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+
+    function rowHtml(r) {
+      const delta  = deltaPct(r.actual, r.prev);
+      const aporte = aportePpCh(r.actual, r.prev);
+      const d7     = delta7Ch(r.actual, r.avg7);
+      const a7     = aporteAvg7Ch(r.actual, r.avg7);
+      const peso   = pesoCh(r.actual);
+      const pesoStr = peso == null ? '—' : (peso * 100).toFixed(1) + '%';
+      const tipAsg = `Actual: ${fmtInt(r.actual)} · Anterior: ${fmtInt(r.prev)}` +
+                     (delta != null && delta !== Infinity ? ` · Δ ${(delta * 100).toFixed(1)}%` : '');
+      const d7Str = (d7 == null) ? '—' : (d7 === Infinity ? 'Δ nuevo' : 'Δ ' + (d7 > 0 ? '+' : '') + (d7 * 100).toFixed(1) + '%');
+      const tipD7 = (r.avg7 == null) ? 'Sin historial suficiente'
+        : `Actual: ${r.actual} · Prom 7s: ${r.avg7.toFixed(1)}` +
+          (d7 != null && d7 !== Infinity ? ` · Δ ${(d7 * 100).toFixed(1)}%` : '');
+      const tipA7 = (totAvg7 > 0 && r.avg7 != null)
+        ? `(${r.actual} − ${r.avg7.toFixed(1)}) / ${totAvg7.toFixed(1)} × 100 = ${a7 == null ? '—' : a7.toFixed(2)} pp` : '';
+      const tipAporte = (totP > 0)
+        ? `(${r.actual} − ${r.prev}) / ${totP} × 100 = ${aporte == null ? '—' : aporte.toFixed(2)} pp` : '';
+      const sel = STATE.channelFilter === r.channel ? ' row-selected' : '';
+      return `<tr class="row-${r.group}${sel}" data-channel="${escapeHtml(r.channel)}">
+        <td class="col-channel">${escapeHtml(r.channel)}</td>
+        <td title="${escapeHtml(tipAsg)}"><span class="delta">${pesoStr}</span><span class="val">${fmtInt(r.actual)}</span></td>
+        <td><span class="val">—</span></td>
+        <td><span class="val">—</span></td>
+        <td><span class="val">—</span></td>
+        <td${heatmapStyle(delta, maxAbsDelta)} title="${escapeHtml(tipAsg)}"><span class="val">${fmtDelta(delta) || '—'}</span></td>
+        <td${heatmapStyle(aporte, maxAbsAporte)} title="${escapeHtml(tipAporte)}"><span class="val">${aporte == null ? '—' : fmtPp(aporte)}</span></td>
+        <td${heatmapStyle(d7, maxAbsDelta7)} title="${escapeHtml(tipD7)}"><span class="val">${d7Str}</span></td>
+        <td${heatmapStyle(a7, maxAbsAporte7)} title="${escapeHtml(tipA7)}"><span class="val">${a7 == null ? '—' : fmtPp(a7)}</span></td>
+      </tr>`;
+    }
+
+    const titleSuffix = filter ? `Fuente: <strong>${escapeHtml(filter)}</strong>` : `Todas las fuentes`;
+
+    let html = `<div class="channels-title">Detalle por canal — ${titleSuffix} · Semana <strong>${escapeHtml(fmtRange(sel))}</strong></div>` +
+      '<table class="matrix"><thead>' +
+        '<tr class="supra">' +
+          '<th class="supra-empty" colspan="3"></th>' +
+          '<th class="supra-meta"  colspan="2">Vs Meta</th>' +
+          '<th class="supra-week"  colspan="2">Vs semana anterior</th>' +
+          '<th class="supra-7s"    colspan="2">Vs prom. últimas 7 semanas</th>' +
+        '</tr>' +
+        '<tr>' +
+          '<th class="col-channel">Canal</th>' +
+          '<th>Asignados</th>' +
+          '<th>Meta</th>' +
+          '<th>Variación</th>' +
+          '<th>Aporte (pp)</th>' +
+          '<th>Variación</th>' +
+          '<th>Aporte (pp)</th>' +
+          '<th>Variación</th>' +
+          '<th>Aporte (pp)</th>' +
+        '</tr></thead><tbody>' +
+        rows.map(rowHtml).join('') +
+      '</tbody></table>';
+
+    wrap.className = 'channels-wrap';
+    wrap.innerHTML = html;
+
+    // Click handler on channel rows: toggle channel filter (drives second chart row)
+    wrap.querySelectorAll('tr[data-channel]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const c = tr.dataset.channel;
+        STATE.channelFilter = (STATE.channelFilter === c) ? null : c;
+        render();
+      });
+    });
+
+    renderChannelCharts();
+  }
+
+  // --- Channel chart row (drilldown) ---
+  function trendSeriesChannel(metric, channel) {
+    const byWeekChannels = (STATE.data[STATE.country] || {}).by_week_channels || {};
+    const weeks = chartWeeks();
+    const fuenteFilter = STATE.fuenteFilter;
+    return weeks.map(w => {
+      const cells = byWeekChannels[w] || {};
+      if (channel) {
+        const cell = cells[channel];
+        return cell ? cell[metric] : null;
+      } else {
+        let sum = 0, hasAny = false;
+        for (const c of Object.values(cells)) {
+          if (fuenteFilter && c.fuente !== fuenteFilter) continue;
+          if (c[metric] != null) { sum += c[metric]; hasAny = true; }
+        }
+        return hasAny ? sum : null;
+      }
+    });
+  }
+  function ratioSeriesChannel(numKey, denKey, channel) {
+    const ns = trendSeriesChannel(numKey, channel);
+    const ds = trendSeriesChannel(denKey, channel);
+    return ns.map((n, i) => {
+      const d = ds[i];
+      return (n != null && d != null && d > 0) ? n / d : null;
+    });
+  }
+
+  const CHARTS_CHANNEL = [
+    { title: 'Asignados',      color: '#818cf8', kind: 'int',   chartType: 'bar',  series: c => trendSeriesChannel('asg', c) },
+    { title: 'Tasa Reg → Asg', color: '#a78bfa', kind: 'pct',   chartType: 'line', series: c => ratioSeriesChannel('asg', 'reg', c) },
+    { title: 'Registros',      color: '#60a5fa', kind: 'int',   chartType: 'bar',  series: c => trendSeriesChannel('reg', c) },
+    { title: 'Inversión',      color: '#fbbf24', kind: 'money', chartType: 'line', series: c => trendSeriesChannel('spend', c) },
+    { title: 'CPL',            color: '#fb923c', kind: 'cpl',   chartType: 'line', series: c => ratioSeriesChannel('spend', 'reg', c) },
+  ];
+
+  function renderChannelCharts() {
+    const filter = STATE.channelFilter;
+    const fFilter = STATE.fuenteFilter;
+    const info = document.getElementById('chartsFilterCh');
+    let infoHtml;
+    if (filter) {
+      infoHtml = `Tendencias del canal <strong>${escapeHtml(filter)}</strong> <button class="pill-clear" id="clearChFilter">limpiar canal</button>`;
+    } else if (fFilter) {
+      infoHtml = `Tendencias agregadas de canales de <strong>${escapeHtml(fFilter)}</strong> (selecciona un canal de la tabla para precisar)`;
+    } else {
+      infoHtml = `Tendencias del TOTAL de canales (haz click en un canal de la tabla para filtrar)`;
+    }
+    info.innerHTML = infoHtml;
+    const clear = document.getElementById('clearChFilter');
+    if (clear) clear.addEventListener('click', e => { e.stopPropagation(); STATE.channelFilter = null; render(); });
+
+    const weeks = chartWeeks();
+    const row = document.getElementById('chartsRowCh');
+    row.innerHTML = CHARTS_CHANNEL.map(c => {
+      const series = c.series(filter);
+      const lastIdx = series.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+      const lastVal = lastIdx == null ? null : series[lastIdx];
+      const lastValStr = fmtCardValue(lastVal, c.kind);
+      const priorValues = series.slice(-CHART_WEEKS, -1).filter(v => v != null);
+      let sub = '';
+      if (lastVal != null && priorValues.length > 0) {
+        const avg = priorValues.reduce((s, v) => s + v, 0) / priorValues.length;
+        if (avg > 0 || (avg === 0 && lastVal > 0)) {
+          if (c.kind === 'pct') {
+            const diffPp = (lastVal - avg) * 100;
+            const sign = diffPp > 0 ? '+' : '';
+            const relStr = avg > 0 ? ` (${(lastVal - avg) / avg > 0 ? '+' : ''}${((lastVal - avg) / avg * 100).toFixed(1)}%)` : '';
+            sub = `${sign}${diffPp.toFixed(1)} pp${relStr} vs prom 7s`;
+          } else {
+            const ch = avg > 0 ? (lastVal - avg) / avg : null;
+            if (ch != null) {
+              const sign = ch > 0 ? '+' : '';
+              sub = `${sign}${(ch * 100).toFixed(1)}% vs prom 7s`;
+            }
+          }
+        }
+      }
+      const contextCount = Math.max(0, series.length - CHART_WEEKS);
+      const chartSvg = c.chartType === 'bar'
+        ? sparklineBar(series, weeks, c.color, c.kind, contextCount)
+        : sparklineLine(series, weeks, c.color, c.kind, contextCount);
+      return `<div class="chart-card">
+        <div class="title">${escapeHtml(c.title)}</div>
+        <div class="last-val">${lastValStr}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+        ${chartSvg}
+      </div>`;
+    }).join('');
+  }
+
+  // --- Platforms sub-table (filtered by fuente + channel) ---
+  function aggregatePlatforms(rows) {
+    // rows: array of {platform, channel, fuente, reg, cal, asg, spend}
+    // returns map { platform: {reg, cal, asg, spend} }
+    const map = {};
+    for (const r of rows) {
+      const p = map[r.platform] || (map[r.platform] = { reg: 0, cal: 0, asg: 0, spend: null });
+      p.reg += r.reg || 0;
+      p.cal += r.cal || 0;
+      p.asg += r.asg || 0;
+      if (r.spend != null) p.spend = (p.spend || 0) + r.spend;
+    }
+    return map;
+  }
+  function applyFilters(rows) {
+    const fF = STATE.fuenteFilter;
+    const cF = STATE.channelFilter;
+    return rows.filter(r => (!fF || r.fuente === fF) && (!cF || r.channel === cF));
+  }
+
+  function renderPlatforms() {
+    const wrap = document.getElementById('platformsWrap');
+    const country = (STATE.data && STATE.data[STATE.country]) || {};
+    const byWeekPlatforms = country.by_week_platforms || {};
+    const allWeeks = Object.keys(byWeekPlatforms).sort();
+    if (!allWeeks.length) { wrap.className = 'channels-wrap empty'; wrap.innerHTML = ''; return; }
+
+    const sel = STATE.weekStart && allWeeks.includes(STATE.weekStart) ? STATE.weekStart : allWeeks[allWeeks.length - 1];
+    const idx = allWeeks.indexOf(sel);
+    const prev = idx > 0 ? allWeeks[idx - 1] : null;
+    const priorWeeks = allWeeks.slice(Math.max(0, idx - 7), idx);
+
+    const aggA = aggregatePlatforms(applyFilters(byWeekPlatforms[sel] || []));
+    const aggP = prev ? aggregatePlatforms(applyFilters(byWeekPlatforms[prev] || [])) : {};
+    // Avg over prior 7 weeks per platform
+    const aggAvgWeeks = priorWeeks.map(w => aggregatePlatforms(applyFilters(byWeekPlatforms[w] || [])));
+    function avg7For(plat) {
+      let sum = 0, n = 0;
+      for (const map of aggAvgWeeks) {
+        if (map[plat]) { sum += map[plat].asg; n++; }
+      }
+      return n > 0 ? sum / n : null;
+    }
+
+    const allPlatforms = new Set([...Object.keys(aggA), ...Object.keys(aggP)]);
+    let rows = [...allPlatforms].map(p => ({
+      platform: p,
+      actual:  (aggA[p] && aggA[p].asg) || 0,
+      prev:    (aggP[p] && aggP[p].asg) || 0,
+      avg7:    avg7For(p),
+      meta:    null,
+    }));
+    rows.sort((a, b) => b.actual - a.actual);
+
+    if (!rows.length) {
+      wrap.className = 'channels-wrap';
+      wrap.innerHTML = `<div class="channels-title">Detalle por plataforma — sin datos para este filtro/semana</div>`;
+      return;
+    }
+
+    let totA = 0, totP = 0, totAvg7 = 0;
+    for (const r of rows) {
+      totA += r.actual; totP += r.prev;
+      if (r.avg7 != null) totAvg7 += r.avg7;
+    }
+
+    function aportePpPl(actual, prevV) { return totP > 0 ? ((actual - prevV) / totP) * 100 : null; }
+    function aporteAvg7Pl(actual, avg7) { return (avg7 != null && totAvg7 > 0) ? ((actual - avg7) / totAvg7) * 100 : null; }
+    function delta7Pl(actual, avg7) {
+      if (avg7 == null) return null;
+      if (avg7 === 0 && actual === 0) return null;
+      if (avg7 === 0) return Infinity;
+      return (actual - avg7) / avg7;
+    }
+    function pesoPl(actual) { return totA > 0 ? actual / totA : null; }
+
+    const maxAbsAporte = rows.reduce((mx, r) => {
+      const a = aportePpPl(r.actual, r.prev);
+      return a == null ? mx : Math.max(mx, Math.abs(a));
+    }, 0);
+    const maxAbsDelta = rows.reduce((mx, r) => {
+      const d = deltaPct(r.actual, r.prev);
+      return (d == null || d === Infinity) ? mx : Math.max(mx, Math.abs(d));
+    }, 0);
+    const maxAbsDelta7 = rows.reduce((mx, r) => {
+      const d = delta7Pl(r.actual, r.avg7);
+      return (d == null || d === Infinity) ? mx : Math.max(mx, Math.abs(d));
+    }, 0);
+    const maxAbsAporte7 = rows.reduce((mx, r) => {
+      const a = aporteAvg7Pl(r.actual, r.avg7);
+      return a == null ? mx : Math.max(mx, Math.abs(a));
+    }, 0);
+    function heatmapStyle(v, maxAbs) {
+      if (v == null || v === 0 || maxAbs <= 0) return '';
+      if (v === Infinity) return ` style="background: rgba(22, 163, 74, 0.45)"`;
+      const intensity = Math.min(Math.abs(v) / maxAbs, 1);
+      const op = (intensity * 0.45).toFixed(3);
+      const rgb = v > 0 ? '22, 163, 74' : '220, 38, 38';
+      return ` style="background: rgba(${rgb}, ${op})"`;
+    }
+
+    function rowHtml(r) {
+      const delta  = deltaPct(r.actual, r.prev);
+      const aporte = aportePpPl(r.actual, r.prev);
+      const d7     = delta7Pl(r.actual, r.avg7);
+      const a7     = aporteAvg7Pl(r.actual, r.avg7);
+      const peso   = pesoPl(r.actual);
+      const pesoStr = peso == null ? '—' : (peso * 100).toFixed(1) + '%';
+      const tipAsg = `Actual: ${fmtInt(r.actual)} · Anterior: ${fmtInt(r.prev)}` +
+                     (delta != null && delta !== Infinity ? ` · Δ ${(delta * 100).toFixed(1)}%` : '');
+      const d7Str = (d7 == null) ? '—' : (d7 === Infinity ? 'Δ nuevo' : 'Δ ' + (d7 > 0 ? '+' : '') + (d7 * 100).toFixed(1) + '%');
+      const tipD7 = (r.avg7 == null) ? 'Sin historial suficiente'
+        : `Actual: ${r.actual} · Prom 7s: ${r.avg7.toFixed(1)}` +
+          (d7 != null && d7 !== Infinity ? ` · Δ ${(d7 * 100).toFixed(1)}%` : '');
+      const tipA7 = (totAvg7 > 0 && r.avg7 != null)
+        ? `(${r.actual} − ${r.avg7.toFixed(1)}) / ${totAvg7.toFixed(1)} × 100 = ${a7 == null ? '—' : a7.toFixed(2)} pp` : '';
+      const tipAporte = (totP > 0)
+        ? `(${r.actual} − ${r.prev}) / ${totP} × 100 = ${aporte == null ? '—' : aporte.toFixed(2)} pp` : '';
+      const sel = STATE.platformFilter === r.platform ? ' row-selected' : '';
+      return `<tr class="${sel}" data-platform="${escapeHtml(r.platform)}">
+        <td class="col-channel">${escapeHtml(r.platform)}</td>
+        <td title="${escapeHtml(tipAsg)}"><span class="delta">${pesoStr}</span><span class="val">${fmtInt(r.actual)}</span></td>
+        <td><span class="val">—</span></td>
+        <td><span class="val">—</span></td>
+        <td><span class="val">—</span></td>
+        <td${heatmapStyle(delta, maxAbsDelta)} title="${escapeHtml(tipAsg)}"><span class="val">${fmtDelta(delta) || '—'}</span></td>
+        <td${heatmapStyle(aporte, maxAbsAporte)} title="${escapeHtml(tipAporte)}"><span class="val">${aporte == null ? '—' : fmtPp(aporte)}</span></td>
+        <td${heatmapStyle(d7, maxAbsDelta7)} title="${escapeHtml(tipD7)}"><span class="val">${d7Str}</span></td>
+        <td${heatmapStyle(a7, maxAbsAporte7)} title="${escapeHtml(tipA7)}"><span class="val">${a7 == null ? '—' : fmtPp(a7)}</span></td>
+      </tr>`;
+    }
+
+    const fF = STATE.fuenteFilter, cF = STATE.channelFilter;
+    const scopeBits = [];
+    if (fF) scopeBits.push(`Fuente: <strong>${escapeHtml(fF)}</strong>`);
+    if (cF) scopeBits.push(`Canal: <strong>${escapeHtml(cF)}</strong>`);
+    if (!scopeBits.length) scopeBits.push(`Todas las fuentes y canales`);
+
+    let html = `<div class="channels-title">Detalle por plataforma — ${scopeBits.join(' · ')} · Semana <strong>${escapeHtml(fmtRange(sel))}</strong></div>` +
+      '<table class="matrix"><thead>' +
+        '<tr class="supra">' +
+          '<th class="supra-empty" colspan="3"></th>' +
+          '<th class="supra-meta"  colspan="2">Vs Meta</th>' +
+          '<th class="supra-week"  colspan="2">Vs semana anterior</th>' +
+          '<th class="supra-7s"    colspan="2">Vs prom. últimas 7 semanas</th>' +
+        '</tr>' +
+        '<tr>' +
+          '<th class="col-channel">Plataforma</th>' +
+          '<th>Asignados</th>' +
+          '<th>Meta</th>' +
+          '<th>Variación</th>' +
+          '<th>Aporte (pp)</th>' +
+          '<th>Variación</th>' +
+          '<th>Aporte (pp)</th>' +
+          '<th>Variación</th>' +
+          '<th>Aporte (pp)</th>' +
+        '</tr></thead><tbody>' +
+        rows.map(rowHtml).join('') +
+      '</tbody></table>';
+
+    wrap.className = 'channels-wrap';
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll('tr[data-platform]').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const p = tr.dataset.platform;
+        STATE.platformFilter = (STATE.platformFilter === p) ? null : p;
+        render();
+      });
+    });
+
+    renderPlatformCharts();
+  }
+
+  // --- Platform chart row (third drilldown) ---
+  function trendSeriesPlatform(metric, platform) {
+    const byWeekPlatforms = (STATE.data[STATE.country] || {}).by_week_platforms || {};
+    const weeks = chartWeeks();
+    const fF = STATE.fuenteFilter;
+    const cF = STATE.channelFilter;
+    return weeks.map(w => {
+      const rows = byWeekPlatforms[w] || [];
+      let sum = 0, hasAny = false;
+      for (const r of rows) {
+        if (fF && r.fuente !== fF) continue;
+        if (cF && r.channel !== cF) continue;
+        if (platform && r.platform !== platform) continue;
+        if (r[metric] != null) { sum += r[metric]; hasAny = true; }
+      }
+      return hasAny ? sum : null;
+    });
+  }
+  function ratioSeriesPlatform(numKey, denKey, platform) {
+    const ns = trendSeriesPlatform(numKey, platform);
+    const ds = trendSeriesPlatform(denKey, platform);
+    return ns.map((n, i) => {
+      const d = ds[i];
+      return (n != null && d != null && d > 0) ? n / d : null;
+    });
+  }
+
+  const CHARTS_PLATFORM = [
+    { title: 'Asignados',      color: '#818cf8', kind: 'int',   chartType: 'bar',  series: p => trendSeriesPlatform('asg', p) },
+    { title: 'Tasa Reg → Asg', color: '#a78bfa', kind: 'pct',   chartType: 'line', series: p => ratioSeriesPlatform('asg', 'reg', p) },
+    { title: 'Registros',      color: '#60a5fa', kind: 'int',   chartType: 'bar',  series: p => trendSeriesPlatform('reg', p) },
+    { title: 'Inversión',      color: '#fbbf24', kind: 'money', chartType: 'line', series: p => trendSeriesPlatform('spend', p) },
+    { title: 'CPL',            color: '#fb923c', kind: 'cpl',   chartType: 'line', series: p => ratioSeriesPlatform('spend', 'reg', p) },
+  ];
+
+  function renderPlatformCharts() {
+    const filter = STATE.platformFilter;
+    const fF = STATE.fuenteFilter;
+    const cF = STATE.channelFilter;
+    const info = document.getElementById('chartsFilterPl');
+    const scopeBits = [];
+    if (fF) scopeBits.push(`Fuente: <strong>${escapeHtml(fF)}</strong>`);
+    if (cF) scopeBits.push(`Canal: <strong>${escapeHtml(cF)}</strong>`);
+    let infoHtml;
+    if (filter) {
+      infoHtml = `Tendencias de la plataforma <strong>${escapeHtml(filter)}</strong>`;
+      if (scopeBits.length) infoHtml += ' · ' + scopeBits.join(' · ');
+      infoHtml += ` <button class="pill-clear" id="clearPlFilter">limpiar plataforma</button>`;
+    } else if (scopeBits.length) {
+      infoHtml = `Tendencias agregadas de plataformas · ${scopeBits.join(' · ')} (selecciona una plataforma de la tabla para precisar)`;
+    } else {
+      infoHtml = `Tendencias del TOTAL de plataformas (haz click en una plataforma de la tabla para filtrar)`;
+    }
+    info.innerHTML = infoHtml;
+    const clear = document.getElementById('clearPlFilter');
+    if (clear) clear.addEventListener('click', e => { e.stopPropagation(); STATE.platformFilter = null; render(); });
+
+    const weeks = chartWeeks();
+    const row = document.getElementById('chartsRowPl');
+    row.innerHTML = CHARTS_PLATFORM.map(c => {
+      const series = c.series(filter);
+      const lastIdx = series.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+      const lastVal = lastIdx == null ? null : series[lastIdx];
+      const lastValStr = fmtCardValue(lastVal, c.kind);
+      const priorValues = series.slice(-CHART_WEEKS, -1).filter(v => v != null);
+      let sub = '';
+      if (lastVal != null && priorValues.length > 0) {
+        const avg = priorValues.reduce((s, v) => s + v, 0) / priorValues.length;
+        if (avg > 0 || (avg === 0 && lastVal > 0)) {
+          if (c.kind === 'pct') {
+            const diffPp = (lastVal - avg) * 100;
+            const sign = diffPp > 0 ? '+' : '';
+            const relStr = avg > 0 ? ` (${(lastVal - avg) / avg > 0 ? '+' : ''}${((lastVal - avg) / avg * 100).toFixed(1)}%)` : '';
+            sub = `${sign}${diffPp.toFixed(1)} pp${relStr} vs prom 7s`;
+          } else {
+            const ch = avg > 0 ? (lastVal - avg) / avg : null;
+            if (ch != null) {
+              const sign = ch > 0 ? '+' : '';
+              sub = `${sign}${(ch * 100).toFixed(1)}% vs prom 7s`;
+            }
+          }
+        }
+      }
+      const contextCount = Math.max(0, series.length - CHART_WEEKS);
+      const chartSvg = c.chartType === 'bar'
+        ? sparklineBar(series, weeks, c.color, c.kind, contextCount)
+        : sparklineLine(series, weeks, c.color, c.kind, contextCount);
+      return `<div class="chart-card">
+        <div class="title">${escapeHtml(c.title)}</div>
+        <div class="last-val">${lastValStr}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+        ${chartSvg}
+      </div>`;
+    }).join('');
+  }
+
+  // --- Pill wiring (country) ---
+  document.querySelectorAll('.pill[data-country]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      STATE.country = btn.dataset.country;
+      localStorage.setItem('wbr2-country', STATE.country);
+      document.querySelectorAll('.pill[data-country]').forEach(b => {
+        b.classList.toggle('active', b.dataset.country === STATE.country);
+      });
+      renderWeekPills();
+      render();
+    });
+  });
+
+  // --- Chart hover tooltip (delegated, both chart rows) ---
+  (function wireChartTooltip() {
+    const tip = document.getElementById('chartTooltip');
+    const roots = [document.getElementById('chartsRow'), document.getElementById('chartsRowCh'), document.getElementById('chartsRowPl')];
+    roots.forEach(root => {
+      root.addEventListener('mouseover', e => {
+        const t = e.target.getAttribute && e.target.getAttribute('data-tip');
+        if (!t) return;
+        tip.textContent = t;
+        tip.classList.add('visible');
+      });
+      root.addEventListener('mousemove', e => {
+        if (!tip.classList.contains('visible')) return;
+        tip.style.left = (e.clientX + 12) + 'px';
+        tip.style.top  = (e.clientY - 30) + 'px';
+      });
+      root.addEventListener('mouseout', e => {
+        const t = e.target.getAttribute && e.target.getAttribute('data-tip');
+        if (t) tip.classList.remove('visible');
+      });
+    });
+  })();
+
+  // --- Load data ---
+  fetch('data.json')
+    .then(r => r.json())
+    .then(d => {
+      STATE.data = d;
+      const lsWeek = localStorage.getItem('wbr2-week');
+      if (lsWeek) STATE.weekStart = lsWeek;
+      renderWeekPills();
+      render();
+    })
+    .catch(err => {
+      document.getElementById('matrix').textContent = 'Error cargando datos: ' + err;
+    });
+</script>
+</body>
+</html>
