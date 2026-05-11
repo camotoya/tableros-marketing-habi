@@ -52,6 +52,11 @@
   .chip + .chip { border-left: 1px solid var(--border); }
   .btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; }
   .btn:hover { border-color: var(--accent); color: var(--text); }
+  .chart-svg { width: 100%; height: 320px; display: block; }
+  .chart-legend { display: flex; gap: 18px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .chart-legend .swatch { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 5px; }
+  .chart-tip { position: absolute; pointer-events: none; background: #0b1224; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; display: none; z-index: 10; }
+  .chart-host { position: relative; }
 </style>
 </head>
 <body>
@@ -109,6 +114,83 @@
     const el = document.getElementById('header-meta');
     const dt = new Date(DATA.updated_at);
     el.textContent = `Actualizado ${dt.toLocaleString('es-CO')} · ${DATA.rows.length.toLocaleString('es-CO')} filas · ${DATA.fuentes.length} fuentes`;
+  }
+
+  // --- Period bucketing ---
+  function isoMonday(dateStr) {
+    // dateStr 'YYYY-MM-DD' → 'YYYY-MM-DD' of Monday of that ISO week
+    const d = new Date(dateStr + 'T00:00:00Z');
+    const day = d.getUTCDay() || 7;  // Sunday=7
+    d.setUTCDate(d.getUTCDate() - day + 1);
+    return d.toISOString().slice(0, 10);
+  }
+  function monthStart(dateStr) {
+    return dateStr.slice(0, 7) + '-01';
+  }
+  function bucket(dateStr) {
+    if (state.granularity === 'day') return dateStr;
+    if (state.granularity === 'week') return isoMonday(dateStr);
+    return monthStart(dateStr);
+  }
+  function bucketLabel(b) {
+    if (state.granularity === 'day') return b;
+    if (state.granularity === 'week') return 'Sem ' + b.slice(5);  // MM-DD
+    // month
+    const [y, m] = b.split('-');
+    return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][parseInt(m,10)-1] + ' ' + y.slice(2);
+  }
+  function currentBucketIsPartial(b) {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    if (state.granularity === 'day') return b === todayStr;
+    if (state.granularity === 'week') return b === isoMonday(todayStr);
+    return b === monthStart(todayStr);
+  }
+
+  // --- Filter evaluation ---
+  function rowPassesUser(row, reqOther, reqState) {
+    if ((row.m & reqOther) !== reqOther) return false;
+    if (reqState === 0) return false;  // degenerate: no states allowed
+    if ((row.m & reqState) === 0) return false;
+    return true;
+  }
+  function rowPassesMart(row) {
+    // ALL_ON = 8191; OTHER part = 7951, STATE part = 240, requires at least one state bit
+    return (row.m & 7951) === 7951 && (row.m & 240) !== 0;
+  }
+
+  // --- Aggregation: returns Map<bucket, count> ---
+  function aggregateUser(rowFilter) {
+    const req = userBitmask();
+    const reqOther = req & OTHER_MASK;
+    const reqState = req & STATE_MASK;
+    const out = new Map();
+    for (const r of DATA.rows) {
+      if (rowFilter && !rowFilter(r)) continue;
+      if (!rowPassesUser(r, reqOther, reqState)) continue;
+      const b = bucket(r.d);
+      out.set(b, (out.get(b) || 0) + r.n);
+    }
+    return out;
+  }
+  function aggregateMart(rowFilter) {
+    const out = new Map();
+    for (const r of DATA.rows) {
+      if (rowFilter && !rowFilter(r)) continue;
+      if (!rowPassesMart(r)) continue;
+      const b = bucket(r.d);
+      out.set(b, (out.get(b) || 0) + r.n);
+    }
+    return out;
+  }
+
+  // --- Build last 18 periods (excluding current incomplete) ---
+  function lastNBuckets(n) {
+    const seen = new Set();
+    for (const r of DATA.rows) seen.add(bucket(r.d));
+    const all = [...seen].sort();
+    const completed = all.filter(b => !currentBucketIsPartial(b));
+    return completed.slice(-n);
   }
 
   function renderControls() {
@@ -213,8 +295,63 @@
     warn.classList.toggle('show', !isStateGroupActive(req));
   }
 
+  function renderChartMain() {
+    const el = document.getElementById('chart-main');
+    const buckets = lastNBuckets(18);
+    const user = aggregateUser();
+    const mart = aggregateMart();
+
+    const userSeries = buckets.map(b => user.get(b) || 0);
+    const martSeries = buckets.map(b => mart.get(b) || 0);
+
+    const maxY = Math.max(1, ...userSeries, ...martSeries);
+    const W = 1180, H = 320, padL = 50, padR = 12, padT = 16, padB = 36;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const x = i => padL + (buckets.length === 1 ? innerW/2 : (i * innerW / (buckets.length - 1)));
+    const y = v => padT + innerH - (v / maxY) * innerH;
+
+    const userPath = userSeries.map((v, i) => (i ? 'L' : 'M') + x(i) + ',' + y(v)).join(' ');
+    const martPath = martSeries.map((v, i) => (i ? 'L' : 'M') + x(i) + ',' + y(v)).join(' ');
+
+    const yTicks = 5;
+    const yTickEls = [];
+    for (let i = 0; i <= yTicks; i++) {
+      const v = Math.round((maxY * i) / yTicks);
+      const yy = y(v);
+      yTickEls.push(`<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="#1f2a44" stroke-width="1"/>`);
+      yTickEls.push(`<text x="${padL - 6}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${v.toLocaleString('es-CO')}</text>`);
+    }
+    const xTickEvery = buckets.length > 12 ? 3 : 2;
+    const xTickEls = buckets.map((b, i) => {
+      if (i % xTickEvery !== 0 && i !== buckets.length - 1) return '';
+      return `<text x="${x(i)}" y="${H - padB + 18}" text-anchor="middle" font-size="11" fill="#94a3b8">${bucketLabel(b)}</text>`;
+    }).join('');
+
+    const lastIdx = buckets.length - 1;
+    const lastUser = userSeries[lastIdx] || 0;
+    const lastMart = martSeries[lastIdx] || 0;
+
+    el.innerHTML = `
+      <h2>Universo de asignados</h2>
+      <div class="chart-legend">
+        <span><span class="swatch" style="background:${getComputedStyle(document.documentElement).getPropertyValue('--accent')};"></span>Usuario · último período: <strong>${lastUser.toLocaleString('es-CO')}</strong></span>
+        ${state.showMart ? `<span><span class="swatch" style="background:${getComputedStyle(document.documentElement).getPropertyValue('--accent-mart')};border-top:1px dashed ${getComputedStyle(document.documentElement).getPropertyValue('--accent-mart')};"></span>Mart oficial · último: <strong>${lastMart.toLocaleString('es-CO')}</strong></span>` : ''}
+        <span>Δ usuario vs mart: <strong>${(lastUser - lastMart).toLocaleString('es-CO')}</strong> (${lastMart ? Math.round((lastUser - lastMart) / lastMart * 100) : 0}%)</span>
+      </div>
+      <div class="chart-host">
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          ${yTickEls.join('')}
+          ${state.showMart ? `<path d="${martPath}" stroke="var(--accent-mart)" stroke-width="1.6" fill="none" stroke-dasharray="6 4"/>` : ''}
+          <path d="${userPath}" stroke="var(--accent)" stroke-width="2.2" fill="none"/>
+          <circle cx="${x(lastIdx)}" cy="${y(lastUser)}" r="4" fill="var(--accent)"/>
+          ${state.showMart ? `<circle cx="${x(lastIdx)}" cy="${y(lastMart)}" r="3" fill="var(--accent-mart)"/>` : ''}
+          ${xTickEls}
+        </svg>
+      </div>
+    `;
+  }
+
   // Renderers for next tasks — stubs for now
-  function renderChartMain()    { document.getElementById('chart-main').innerHTML = '<h2>Chart principal</h2><div class="muted">Pendiente Task 5</div>'; }
   function renderBreakdowns()   { document.getElementById('breakdowns').innerHTML = '<h2>Breakdowns por filtro</h2><div class="muted">Pendiente Task 6</div>'; }
   function renderCalificacion() { document.getElementById('calificacion').innerHTML = '<h2>Calificación</h2><div class="muted">Pendiente Task 7</div>'; }
 
