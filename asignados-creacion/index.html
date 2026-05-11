@@ -30,12 +30,20 @@
   header.page p { margin: 0; color: var(--muted); font-size: 13px; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; }
   .card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+  .card h3 { margin: 14px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .row { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
   .chip-group { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .chip { padding: 6px 14px; cursor: pointer; background: transparent; color: var(--text-secondary); border: 0; font-size: 13px; }
   .chip.active { background: var(--accent); color: #0b1224; font-weight: 600; }
   .chip + .chip { border-left: 1px solid var(--border); }
+  .btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); color: var(--text); }
+  .fuente-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
+  .fuente-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; cursor: pointer; user-select: none; }
+  .fuente-row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
   .chart-svg { width: 100%; height: 360px; display: block; }
   .chart-legend { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .muted { color: var(--muted); }
 </style>
 </head>
 <body>
@@ -54,21 +62,24 @@
 (async function () {
   const DATA_URL = 'data.json';
   let DATA = null;
-  const state = { granularity: 'week' };
+  const state = {
+    granularity: 'week',
+    fuentes: new Set(),  // filled after load
+  };
 
   async function loadData() {
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
     DATA = await res.json();
+    for (const f of DATA.fuentes) state.fuentes.add(f);
   }
 
   function setMeta() {
     const dt = new Date(DATA.updated_at);
     document.getElementById('header-meta').textContent =
-      `Asignados del WBR mart (papyrus-master.sellers_data_mart.sellers_leads_asignados_marketing_wbr_mart), bucketeados por fecha de creación del lead · Actualizado ${dt.toLocaleString('es-CO')}`;
+      `Asignados del WBR mart bucketeados por fecha de creación del lead · Actualizado ${dt.toLocaleString('es-CO')}`;
   }
 
-  // --- Bucketing ---
   function isoMonday(dateStr) {
     const d = new Date(dateStr + 'T00:00:00Z');
     const day = d.getUTCDay() || 7;
@@ -97,6 +108,7 @@
   function aggregate() {
     const out = new Map();
     for (const r of DATA.rows) {
+      if (!state.fuentes.has(r.f)) continue;
       const b = bucket(r.d);
       out.set(b, (out.get(b) || 0) + r.n);
     }
@@ -112,12 +124,29 @@
 
   function renderControls() {
     const el = document.getElementById('controls');
+    const fuenteRows = DATA.fuentes.map(f => `
+      <label class="fuente-row">
+        <input type="checkbox" data-fuente="${f}" ${state.fuentes.has(f) ? 'checked' : ''}/>
+        ${f}
+      </label>
+    `).join('');
     el.innerHTML = `
-      <h2>Granularidad</h2>
-      <div class="chip-group" id="granularity">
-        <button class="chip" data-g="day">Día</button>
-        <button class="chip active" data-g="week">Semana</button>
-        <button class="chip" data-g="month">Mes</button>
+      <div class="row">
+        <div>
+          <h3 style="margin-top:0">Granularidad</h3>
+          <div class="chip-group" id="granularity">
+            <button class="chip" data-g="day">Día</button>
+            <button class="chip active" data-g="week">Semana</button>
+            <button class="chip" data-g="month">Mes</button>
+          </div>
+        </div>
+        <div style="flex:1; min-width:280px;">
+          <h3 style="margin-top:0">Fuentes
+            <button class="btn" data-action="all" style="margin-left:8px;">Todas</button>
+            <button class="btn" data-action="none">Ninguna</button>
+          </h3>
+          <div class="fuente-grid">${fuenteRows}</div>
+        </div>
       </div>
     `;
     el.querySelectorAll('[data-g]').forEach(btn => {
@@ -127,13 +156,31 @@
         renderChart();
       });
     });
+    el.querySelectorAll('input[data-fuente]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const f = cb.dataset.fuente;
+        if (cb.checked) state.fuentes.add(f); else state.fuentes.delete(f);
+        renderChart();
+      });
+    });
+    el.querySelector('[data-action="all"]').addEventListener('click', () => {
+      state.fuentes.clear();
+      for (const f of DATA.fuentes) state.fuentes.add(f);
+      el.querySelectorAll('input[data-fuente]').forEach(cb => cb.checked = true);
+      renderChart();
+    });
+    el.querySelector('[data-action="none"]').addEventListener('click', () => {
+      state.fuentes.clear();
+      el.querySelectorAll('input[data-fuente]').forEach(cb => cb.checked = false);
+      renderChart();
+    });
   }
 
   function renderChart() {
     const el = document.getElementById('chart');
     const data = lastNBuckets(18);
-    if (data.length === 0) {
-      el.innerHTML = '<h2>Asignados</h2><div class="muted">Sin datos</div>';
+    if (data.length === 0 || data.every(d => d.n === 0)) {
+      el.innerHTML = `<h2>Asignados · últimos 18 ${state.granularity === 'day' ? 'días' : state.granularity === 'week' ? 'semanas' : 'meses'}</h2><div class="muted">Sin datos (¿revisaste que haya al menos una fuente marcada?)</div>`;
       return;
     }
     const series = data.map(d => d.n);
@@ -163,10 +210,15 @@
     const lastIdx = data.length - 1;
     const lastVal = series[lastIdx];
     const total = series.reduce((a,b) => a+b, 0);
+    const fuentesActivas = [...state.fuentes];
 
     el.innerHTML = `
       <h2>Asignados · últimos 18 ${state.granularity === 'day' ? 'días' : state.granularity === 'week' ? 'semanas' : 'meses'}</h2>
-      <div class="chart-legend">Último período: <strong>${lastVal.toLocaleString('es-CO')}</strong> · Total ventana: <strong>${total.toLocaleString('es-CO')}</strong></div>
+      <div class="chart-legend">
+        Último período: <strong>${lastVal.toLocaleString('es-CO')}</strong> ·
+        Total ventana: <strong>${total.toLocaleString('es-CO')}</strong> ·
+        Fuentes incluidas (${fuentesActivas.length}/${DATA.fuentes.length}): ${fuentesActivas.length === DATA.fuentes.length ? 'Todas' : fuentesActivas.join(', ') || 'Ninguna'}
+      </div>
       <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
         ${yEls.join('')}
         <path d="${path}" stroke="var(--accent)" stroke-width="2.2" fill="none"/>
