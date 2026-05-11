@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
+<title>Asignados por fecha de creación (CO)</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --border: #334155;
+    --accent: #818cf8;
+    --text: #f8fafc;
+    --text-secondary: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .back-link {
+    display: inline-block; padding: 8px 12px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px; margin: 12px;
+  }
+  .back-link:hover { color: var(--text); border-color: var(--accent); text-decoration: none; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 12px 24px 48px; }
+  header.page { margin: 12px 0 18px; }
+  header.page h1 { margin: 0 0 6px; font-size: 22px; }
+  header.page p { margin: 0; color: var(--muted); font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+  .chip-group { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .chip { padding: 6px 14px; cursor: pointer; background: transparent; color: var(--text-secondary); border: 0; font-size: 13px; }
+  .chip.active { background: var(--accent); color: #0b1224; font-weight: 600; }
+  .chip + .chip { border-left: 1px solid var(--border); }
+  .chart-svg { width: 100%; height: 360px; display: block; }
+  .chart-legend { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<a class="back-link" href="../">← Volver (Tableros Marketing Sellers)</a>
+<div class="container">
+  <header class="page">
+    <h1>Asignados por fecha de creación (CO)</h1>
+    <p id="header-meta">Cargando…</p>
+  </header>
+
+  <div class="card" id="controls"></div>
+  <div class="card" id="chart"></div>
+</div>
+
+<script>
+(async function () {
+  const DATA_URL = 'data.json';
+  let DATA = null;
+  const state = { granularity: 'week' };
+
+  async function loadData() {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
+    DATA = await res.json();
+  }
+
+  function setMeta() {
+    const dt = new Date(DATA.updated_at);
+    document.getElementById('header-meta').textContent =
+      `Asignados del WBR mart (papyrus-master.sellers_data_mart.sellers_leads_asignados_marketing_wbr_mart), bucketeados por fecha de creación del lead · Actualizado ${dt.toLocaleString('es-CO')}`;
+  }
+
+  // --- Bucketing ---
+  function isoMonday(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00Z');
+    const day = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() - day + 1);
+    return d.toISOString().slice(0, 10);
+  }
+  function monthStart(dateStr) { return dateStr.slice(0, 7) + '-01'; }
+  function bucket(dateStr) {
+    if (state.granularity === 'day') return dateStr;
+    if (state.granularity === 'week') return isoMonday(dateStr);
+    return monthStart(dateStr);
+  }
+  function bucketLabel(b) {
+    if (state.granularity === 'day') return b.slice(5);
+    if (state.granularity === 'week') return 'Sem ' + b.slice(5);
+    const [y, m] = b.split('-');
+    return ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][parseInt(m,10)-1] + ' ' + y.slice(2);
+  }
+  function currentBucketIsPartial(b) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (state.granularity === 'day') return b === today;
+    if (state.granularity === 'week') return b === isoMonday(today);
+    return b === monthStart(today);
+  }
+
+  function aggregate() {
+    const out = new Map();
+    for (const r of DATA.rows) {
+      const b = bucket(r.d);
+      out.set(b, (out.get(b) || 0) + r.n);
+    }
+    return out;
+  }
+
+  function lastNBuckets(n) {
+    const agg = aggregate();
+    const all = [...agg.keys()].sort();
+    const completed = all.filter(b => !currentBucketIsPartial(b));
+    return completed.slice(-n).map(b => ({ b, n: agg.get(b) }));
+  }
+
+  function renderControls() {
+    const el = document.getElementById('controls');
+    el.innerHTML = `
+      <h2>Granularidad</h2>
+      <div class="chip-group" id="granularity">
+        <button class="chip" data-g="day">Día</button>
+        <button class="chip active" data-g="week">Semana</button>
+        <button class="chip" data-g="month">Mes</button>
+      </div>
+    `;
+    el.querySelectorAll('[data-g]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.granularity = btn.dataset.g;
+        el.querySelectorAll('[data-g]').forEach(b => b.classList.toggle('active', b === btn));
+        renderChart();
+      });
+    });
+  }
+
+  function renderChart() {
+    const el = document.getElementById('chart');
+    const data = lastNBuckets(18);
+    if (data.length === 0) {
+      el.innerHTML = '<h2>Asignados</h2><div class="muted">Sin datos</div>';
+      return;
+    }
+    const series = data.map(d => d.n);
+    const maxY = Math.max(1, ...series);
+    const W = 1180, H = 360, padL = 56, padR = 16, padT = 20, padB = 44;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const x = i => padL + (data.length === 1 ? innerW/2 : i * innerW / (data.length - 1));
+    const y = v => padT + innerH - (v / maxY) * innerH;
+    const path = series.map((v, i) => (i ? 'L' : 'M') + x(i) + ',' + y(v)).join(' ');
+
+    const yTicks = 5;
+    const yEls = [];
+    for (let i = 0; i <= yTicks; i++) {
+      const v = Math.round((maxY * i) / yTicks);
+      const yy = y(v);
+      yEls.push(`<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="#1f2a44"/>`);
+      yEls.push(`<text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${v.toLocaleString('es-CO')}</text>`);
+    }
+    const xTickEvery = data.length > 12 ? 3 : 2;
+    const xEls = data.map((d, i) => {
+      if (i % xTickEvery !== 0 && i !== data.length - 1) return '';
+      return `<text x="${x(i)}" y="${H - padB + 20}" text-anchor="middle" font-size="11" fill="#94a3b8">${bucketLabel(d.b)}</text>`;
+    }).join('');
+
+    const dots = data.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.n)}" r="3" fill="var(--accent)"><title>${d.b}: ${d.n.toLocaleString('es-CO')} asignados</title></circle>`).join('');
+
+    const lastIdx = data.length - 1;
+    const lastVal = series[lastIdx];
+    const total = series.reduce((a,b) => a+b, 0);
+
+    el.innerHTML = `
+      <h2>Asignados · últimos 18 ${state.granularity === 'day' ? 'días' : state.granularity === 'week' ? 'semanas' : 'meses'}</h2>
+      <div class="chart-legend">Último período: <strong>${lastVal.toLocaleString('es-CO')}</strong> · Total ventana: <strong>${total.toLocaleString('es-CO')}</strong></div>
+      <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        ${yEls.join('')}
+        <path d="${path}" stroke="var(--accent)" stroke-width="2.2" fill="none"/>
+        ${dots}
+        <circle cx="${x(lastIdx)}" cy="${y(lastVal)}" r="4.5" fill="var(--accent)"/>
+        ${xEls}
+      </svg>
+    `;
+  }
+
+  try {
+    await loadData();
+    setMeta();
+    renderControls();
+    renderChart();
+  } catch (e) {
+    document.getElementById('header-meta').textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+})();
+</script>
+</body>
+</html>
