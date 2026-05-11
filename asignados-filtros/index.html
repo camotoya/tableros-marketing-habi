@@ -35,6 +35,23 @@
   .card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
   /* hooks for next tasks; keep empty for now */
   .controls, .filter-panel, .chart-main, .breakdowns, .calificacion { /* layout in later tasks */ }
+  .muted { color: var(--muted); }
+  .filter-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .filter-group h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .filter-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+  .filter-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+  .filter-row .lock { color: var(--muted); font-size: 11px; }
+  .filter-row .info { color: var(--muted); cursor: help; }
+  .filter-row.locked { opacity: 0.7; }
+  .warn-banner { background: rgba(248, 113, 113, 0.12); border: 1px solid var(--bad); color: var(--bad); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; display: none; }
+  .warn-banner.show { display: block; }
+  .controls-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .chip-group { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .chip { padding: 6px 12px; cursor: pointer; background: transparent; color: var(--text-secondary); border: 0; font-size: 13px; }
+  .chip.active { background: var(--accent); color: #0b1224; font-weight: 600; }
+  .chip + .chip { border-left: 1px solid var(--border); }
+  .btn { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); color: var(--text); }
 </style>
 </head>
 <body>
@@ -55,16 +72,37 @@
 <script>
 (async function () {
   const DATA_URL = 'data.json';
-  const STATE_MASK = 240;      // bits 4..7 (F7..F10)
-  const OTHER_MASK = 7951;     // bits 0..3, 8..12
-  const ALL_ON     = 8191;     // all 13 toggleable bits set
+  const STATE_MASK = 240;
+  const OTHER_MASK = 7951;
+  const ALL_ON     = 8191;
+  const STATE_BITS = [4, 5, 6, 7];  // F7..F10
 
   let DATA = null;
+  // user state — which filters are active (true = applied). Defaults to all on (= mart oficial).
+  const state = {
+    granularity: 'week',     // 'day' | 'week' | 'month'
+    showMart: true,
+    active: {},              // { F3: true, ..., F15: true }
+  };
+
+  function userBitmask() {
+    let m = 0;
+    for (const f of DATA.filters) {
+      if (state.active[f.id]) m |= (1 << f.bit);
+    }
+    return m;
+  }
+
+  function isStateGroupActive(req) {
+    return (req & STATE_MASK) !== 0;
+  }
 
   async function loadData() {
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
     DATA = await res.json();
+    // Default state: all filters on
+    for (const f of DATA.filters) state.active[f.id] = true;
   }
 
   function setMeta() {
@@ -73,12 +111,128 @@
     el.textContent = `Actualizado ${dt.toLocaleString('es-CO')} · ${DATA.rows.length.toLocaleString('es-CO')} filas · ${DATA.fuentes.length} fuentes`;
   }
 
+  function renderControls() {
+    const el = document.getElementById('controls');
+    el.innerHTML = `
+      <h2>Granularidad y atajos</h2>
+      <div class="controls-row">
+        <div class="chip-group" id="granularity">
+          <button class="chip" data-g="day">Día</button>
+          <button class="chip active" data-g="week">Semana</button>
+          <button class="chip" data-g="month">Mes</button>
+        </div>
+        <label class="filter-row" style="margin-left:8px;">
+          <input type="checkbox" id="toggle-mart" ${state.showMart ? 'checked' : ''}/>
+          Mostrar línea mart oficial
+        </label>
+        <button class="btn" data-action="all-on">Todos on (mart)</button>
+        <button class="btn" data-action="all-off">Todos off (universo crudo)</button>
+        <button class="btn" data-action="reset">Reset</button>
+      </div>
+    `;
+    el.querySelectorAll('[data-g]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.granularity = btn.dataset.g;
+        el.querySelectorAll('[data-g]').forEach(b => b.classList.toggle('active', b === btn));
+        renderAll();
+      });
+    });
+    el.querySelector('#toggle-mart').addEventListener('change', e => {
+      state.showMart = e.target.checked;
+      renderAll();
+    });
+    el.querySelector('[data-action="all-on"]').addEventListener('click', () => {
+      for (const f of DATA.filters) state.active[f.id] = true;
+      renderAll();
+    });
+    el.querySelector('[data-action="all-off"]').addEventListener('click', () => {
+      for (const f of DATA.filters) state.active[f.id] = false;
+      renderAll();
+    });
+    el.querySelector('[data-action="reset"]').addEventListener('click', () => {
+      for (const f of DATA.filters) state.active[f.id] = true;
+      state.granularity = 'week';
+      state.showMart = true;
+      renderAll();
+    });
+  }
+
+  function renderFilterPanel() {
+    const el = document.getElementById('filter-panel');
+    const byGroup = {};
+    for (const f of DATA.filters) {
+      (byGroup[f.group] = byGroup[f.group] || []).push(f);
+    }
+    const lockedRows = `
+      <div class="filter-group">
+        <h3>Origen</h3>
+        <div class="filter-row locked"><span class="lock">🔒</span> F1 · Solo cambios de hubspot_owner_id <span class="info" title="Fuente: history WHERE propiedad='hubspot_owner_id'. Sin este filtro no hay universo de asignaciones.">ℹ︎</span></div>
+        <div class="filter-row locked"><span class="lock">🔒</span> F2 · Primera asignación por nid <span class="info" title="QUALIFY ROW_NUMBER() OVER (PARTITION BY nid ORDER BY fecha) = 1. Convención del mart.">ℹ︎</span></div>
+      </div>
+    `;
+    const fechaRow = `
+      <div class="filter-group">
+        <h3>Fecha</h3>
+        <div class="filter-row locked"><span class="lock">🔒</span> F16 · UTC → Colombia (UTC-5) <span class="info" title="DATE_SUB(fecha, INTERVAL 5 HOUR). Transversal a todos los reportes.">ℹ︎</span></div>
+      </div>
+    `;
+    const groupsOrder = ['Correo', 'Estado', 'Calidad', 'Inmueble', 'Inmo'];
+    const groupsHtml = groupsOrder.map(g => {
+      const rows = (byGroup[g] || []).map(f => `
+        <label class="filter-row" data-fid="${f.id}">
+          <input type="checkbox" data-fid="${f.id}" ${state.active[f.id] ? 'checked' : ''}/>
+          ${f.id} · ${f.label}
+          <span class="info" title="${f.tooltip.replace(/"/g,'&quot;')}">ℹ︎</span>
+        </label>
+      `).join('');
+      return `<div class="filter-group"><h3>${g}</h3>${rows}</div>`;
+    }).join('');
+
+    el.innerHTML = `
+      <h2>Filtros</h2>
+      <div class="warn-banner" id="state-warn">⚠ Los 4 estados (F7–F10) están apagados — el universo será 0. Activá al menos uno para ver datos.</div>
+      <div class="filter-groups">
+        ${lockedRows}
+        ${groupsHtml}
+        ${fechaRow}
+      </div>
+    `;
+    el.querySelectorAll('input[type=checkbox][data-fid]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        state.active[cb.dataset.fid] = cb.checked;
+        renderAll();
+      });
+    });
+    updateStateWarn();
+  }
+
+  function updateStateWarn() {
+    const req = userBitmask();
+    const warn = document.getElementById('state-warn');
+    if (!warn) return;
+    warn.classList.toggle('show', !isStateGroupActive(req));
+  }
+
+  // Renderers for next tasks — stubs for now
+  function renderChartMain()    { document.getElementById('chart-main').innerHTML = '<h2>Chart principal</h2><div class="muted">Pendiente Task 5</div>'; }
+  function renderBreakdowns()   { document.getElementById('breakdowns').innerHTML = '<h2>Breakdowns por filtro</h2><div class="muted">Pendiente Task 6</div>'; }
+  function renderCalificacion() { document.getElementById('calificacion').innerHTML = '<h2>Calificación</h2><div class="muted">Pendiente Task 7</div>'; }
+
+  function renderAll() {
+    updateStateWarn();
+    renderChartMain();
+    renderBreakdowns();
+    renderCalificacion();
+  }
+
   try {
     await loadData();
     setMeta();
-    // Hooks for next tasks:
+    renderControls();
+    renderFilterPanel();
+    renderAll();
     window.__DATA__ = DATA;
-    window.__MASKS__ = { STATE_MASK, OTHER_MASK, ALL_ON };
+    window.__STATE__ = state;
   } catch (e) {
     document.getElementById('header-meta').textContent = 'Error: ' + e.message;
     console.error(e);
