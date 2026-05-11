@@ -65,6 +65,12 @@
   table.breakdowns-table tr.row-toggle.off td:first-child { opacity: 0.55; }
   .signed-down { color: var(--bad); }
   .signed-up   { color: var(--good); }
+  .cali-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cali-card { background: rgba(15, 23, 42, 0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+  .cali-card h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-secondary); }
+  .cali-card .summary { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .cali-card svg { width: 100%; height: 160px; display: block; }
+  @media (max-width: 720px) { .cali-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -442,8 +448,78 @@
       });
     });
   }
-  // Renderers for next tasks — stubs for now
-  function renderCalificacion() { document.getElementById('calificacion').innerHTML = '<h2>Calificación</h2><div class="muted">Pendiente Task 7</div>'; }
+  function miniLineSvg(seriesA, seriesB, opts) {
+    const W = 560, H = 160, padL = 36, padR = 10, padT = 8, padB = 22;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const maxY = Math.max(1, ...seriesA, ...(opts.compare ? seriesB : []));
+    const xs = i => padL + (seriesA.length <= 1 ? innerW/2 : i * innerW / (seriesA.length - 1));
+    const ys = v => padT + innerH - (v / maxY) * innerH;
+    const pathA = seriesA.map((v, i) => (i ? 'L' : 'M') + xs(i) + ',' + ys(v)).join(' ');
+    const pathB = opts.compare ? seriesB.map((v, i) => (i ? 'L' : 'M') + xs(i) + ',' + ys(v)).join(' ') : '';
+    const yTicks = 3;
+    let ticks = '';
+    for (let i = 0; i <= yTicks; i++) {
+      const v = (maxY * i) / yTicks;
+      const yy = ys(v);
+      const label = opts.percent ? Math.round(v * 100) + '%' : Math.round(v).toLocaleString('es-CO');
+      ticks += `<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="#1f2a44"/>`;
+      ticks += `<text x="${padL - 4}" y="${yy + 4}" text-anchor="end" font-size="10" fill="#94a3b8">${label}</text>`;
+    }
+    const lastIdx = seriesA.length - 1;
+    return `
+      <svg viewBox="0 0 ${W} ${H}">
+        ${ticks}
+        ${opts.compare ? `<path d="${pathB}" stroke="var(--accent-mart)" stroke-width="1.4" fill="none" stroke-dasharray="5 3"/>` : ''}
+        <path d="${pathA}" stroke="var(--accent)" stroke-width="2" fill="none"/>
+        ${lastIdx >= 0 ? `<circle cx="${xs(lastIdx)}" cy="${ys(seriesA[lastIdx])}" r="3.5" fill="var(--accent)"/>` : ''}
+      </svg>
+    `;
+  }
+
+  function renderCalificacion() {
+    const el = document.getElementById('calificacion');
+    const buckets = lastNBuckets(18);
+    if (buckets.length === 0) {
+      el.innerHTML = '<h2>Calificación</h2><div class="muted">Sin datos</div>';
+      return;
+    }
+    const userCal = aggregateUser(r => r.c === 1);
+    const userAll = aggregateUser();
+    const martCal = aggregateMart(r => r.c === 1);
+    const martAll = aggregateMart();
+
+    const calA = buckets.map(b => userCal.get(b) || 0);
+    const calB = buckets.map(b => martCal.get(b) || 0);
+    const rateA = buckets.map(b => {
+      const tot = userAll.get(b) || 0;
+      return tot ? (userCal.get(b) || 0) / tot : 0;
+    });
+    const rateB = buckets.map(b => {
+      const tot = martAll.get(b) || 0;
+      return tot ? (martCal.get(b) || 0) / tot : 0;
+    });
+
+    const lastCalUser = calA[calA.length - 1] || 0;
+    const lastRateUser = rateA[rateA.length - 1] || 0;
+    const lastCalMart = calB[calB.length - 1] || 0;
+    const lastRateMart = rateB[rateB.length - 1] || 0;
+
+    el.innerHTML = `
+      <h2>Calificación (state_id IN 20, 63)</h2>
+      <div class="cali-grid">
+        <div class="cali-card">
+          <h3>Calificados · volumen</h3>
+          <div class="summary">Usuario último: <strong>${lastCalUser.toLocaleString('es-CO')}</strong> · Mart último: <strong>${lastCalMart.toLocaleString('es-CO')}</strong></div>
+          ${miniLineSvg(calA, calB, { compare: state.showMart, percent: false })}
+        </div>
+        <div class="cali-card">
+          <h3>Tasa de calificación · % del universo</h3>
+          <div class="summary">Usuario último: <strong>${(lastRateUser*100).toFixed(1)}%</strong> · Mart último: <strong>${(lastRateMart*100).toFixed(1)}%</strong></div>
+          ${miniLineSvg(rateA, rateB, { compare: state.showMart, percent: true })}
+        </div>
+      </div>
+    `;
+  }
 
   function renderAll() {
     updateStateWarn();
