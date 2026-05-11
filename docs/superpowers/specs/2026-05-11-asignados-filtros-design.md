@@ -86,13 +86,19 @@ Replica la lógica del mart desde tablas crudas. Produce **1 fila por asignació
 
 La consecuencia es que el grupo Estado necesita lógica OR en el frontend, distinta del AND de los otros grupos. Detalles en la sección "Lógica frontend".
 
-### Tablas fuente
+### Tablas fuente (v1 implementado, refactorizado por IAM)
 
-- `papyrus-master.src_sellers_hubspot.history` — universo base
-- `papyrus-data.habi_wh_bi.sc_users_hubspot` — resolver `owner_id → email`
-- `papyrus-staging.src_sellers_hubspot.deal` — estado del deal, `contacto_digital`
-- `papyrus-data.habi_wh_bi.tabla_inmuebles_general` — `check_a_pricing`, `fecha_creacion`, `fuente_id`, `calificacion_del_lead_v2`, `asignacion_descartes_top`
-- `sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2` — calificado event-based
+Las tablas originalmente planeadas (`papyrus-master.src_sellers_hubspot.history` y `papyrus-staging.src_sellers_hubspot.deal`) no son accesibles desde el workflow. Se refactorizó para usar solo:
+
+- `papyrus-data.habi_wh_bi.tabla_inmuebles_general` — universo base (`fecha_primer_asignacion IS NOT NULL`), `hubspot_owner_id`, `estado`, `calificacion_del_lead_v2`, `check_a_pricing`, `fecha_creacion`, `fuente_id`
+- `papyrus-data.habi_wh_bi.sc_users_hubspot` — resolver `hubspot_owner_id → email`
+- `sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2` — calificado event-based (`estado_id IN (20, 63)`)
+
+**Limitaciones del refactor:**
+- `hubspot_owner_id` en TIG es el owner ACTUAL del deal, no necesariamente el primer asignado. Para deals no reasignados (la mayoría) coincide. Para reasignados, los filtros F3-F5 evalúan al owner actual.
+- `estado` en TIG es el estado actual del deal. Lo mismo aplica al filtro original del mart.
+- F6 (contacto_digital) y F15 (asignacion_descartes_top) **no pueden aplicarse** con los accesos disponibles. Se renderizan en el panel como locked-disabled.
+- F16 (UTC→Colombia) **no aplica**: las fechas en TIG ya están en hora Colombia.
 
 ### Mapeo fuente_id → etiqueta
 
