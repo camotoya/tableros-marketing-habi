@@ -390,7 +390,7 @@ jobs:
         if: always()
         run: |
           bq query --use_legacy_sql=false --format=json --max_rows=10000000 \
-            < asignados-filtros/query.sql > /tmp/asignados-raw.json
+            < asignados-filtros/query.sql > /tmp/asignados-raw.json 2>&1 || (echo "BQ error, dumping raw output:"; cat /tmp/asignados-raw.json; exit 1)
 
       - name: Build asignados-filtros/data.json
         if: always()
