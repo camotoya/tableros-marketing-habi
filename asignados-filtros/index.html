@@ -269,13 +269,24 @@
     `;
     const groupsOrder = ['Correo', 'Estado', 'Calidad', 'Inmueble', 'Inmo'];
     const groupsHtml = groupsOrder.map(g => {
-      const rows = (byGroup[g] || []).map(f => `
-        <label class="filter-row" data-fid="${f.id}">
-          <input type="checkbox" data-fid="${f.id}" ${state.active[f.id] ? 'checked' : ''}/>
-          ${f.id} · ${f.label}
-          <span class="info" title="${f.tooltip.replace(/"/g,'&quot;')}">ℹ︎</span>
-        </label>
-      `).join('');
+      const rows = (byGroup[g] || []).map(f => {
+        if (f.disabled) {
+          const reason = (f.disabled_reason || 'No disponible en v1').replace(/"/g,'&quot;');
+          return `
+            <div class="filter-row locked" data-fid="${f.id}">
+              <span class="lock">🔒</span> ${f.id} · ${f.label}
+              <span class="info" title="${reason}">ℹ︎</span>
+            </div>
+          `;
+        }
+        return `
+          <label class="filter-row" data-fid="${f.id}">
+            <input type="checkbox" data-fid="${f.id}" ${state.active[f.id] ? 'checked' : ''}/>
+            ${f.id} · ${f.label}
+            <span class="info" title="${f.tooltip.replace(/"/g,'&quot;')}">ℹ︎</span>
+          </label>
+        `;
+      }).join('');
       return `<div class="filter-group"><h3>${g}</h3>${rows}</div>`;
     }).join('');
 
@@ -388,8 +399,19 @@
     const basePrev    = prevBucket ? countWith({}, prevBucket) : null;
 
     const rowsHtml = DATA.filters.map(f => {
+      if (f.disabled) {
+        return `
+          <tr class="off" data-fid="${f.id}">
+            <td>${f.id} · ${f.label}</td>
+            <td>${f.group}</td>
+            <td class="muted">🔒 no disponible</td>
+            <td class="num">${baseCurrent.toLocaleString('es-CO')}</td>
+            <td class="num muted">—</td>
+            <td class="num muted">${basePrev !== null ? basePrev.toLocaleString('es-CO') : '—'}</td>
+          </tr>
+        `;
+      }
       const isOn = !!state.active[f.id];
-      // Marginal effect: difference in current bucket from flipping this filter.
       const flipped = countWith({ [f.id]: !isOn }, lastBucket);
       const delta = flipped - baseCurrent;
       const sign = delta >= 0 ? 'up' : 'down';

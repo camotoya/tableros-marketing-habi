@@ -23,7 +23,8 @@ FILTERS = [
     {"id": "F5",  "bit": 2,  "group": "Correo",   "label": "Excluye correos hardcoded",
      "tooltip": "Excluye alejandroaguirre@habi.co, erickcastillo@tuhabi.mx, victorialechtig@tuhabi.mx."},
     {"id": "F6",  "bit": 3,  "group": "Correo",   "label": "Owners especiales req. contacto digital",
-     "tooltip": "4 correos (lauracruz, alejandrobravo, juanquinones, juanarcos @habi.co) solo cuentan si el lead tiene contacto_digital diligenciado."},
+     "disabled": True, "disabled_reason": "Bloqueado: la columna contacto_digital solo está en papyrus-staging.src_sellers_hubspot.deal, sin acceso desde el workflow.",
+     "tooltip": "4 correos (lauracruz, alejandrobravo, juanquinones, juanarcos @habi.co) solo cuentan si el lead tiene contacto_digital diligenciado. [No disponible v1]."},
     {"id": "F7",  "bit": 4,  "group": "Estado",   "label": "Estado: sin pricing incial",
      "tooltip": "Acepta deals con estado 'sin pricing incial' (con typo, estado 63). Grupo Estado funciona como OR: deal pasa si su estado coincide con al menos uno de los marcados."},
     {"id": "F8",  "bit": 5,  "group": "Estado",   "label": "Estado: no gestionado",
@@ -41,7 +42,8 @@ FILTERS = [
     {"id": "F14", "bit": 11, "group": "Inmueble", "label": "nid no nulo",
      "tooltip": "El inmueble debe existir (nid no nulo). Redundante con join pero expuesto para coherencia con el doc."},
     {"id": "F15", "bit": 12, "group": "Inmo",     "label": "Descarte a inmobiliaria",
-     "tooltip": "[v1: dummy] La columna asignacion_descartes_top no es accesible. El toggle es funcional pero el filtro no excluye nada actualmente. Intento original: excluye leads asignados solo al canal inmobiliaria. Por aclarar con Data&BI cuál es la columna real."},
+     "disabled": True, "disabled_reason": "Bloqueado: la columna asignacion_descartes_top no existe en tabla_inmuebles_general con los accesos disponibles. Por aclarar con Data&BI cuál es la columna real.",
+     "tooltip": "Excluye leads asignados solo al canal inmobiliaria (asignacion_descartes_top no nulo). [No disponible v1]."},
 ]
 
 
