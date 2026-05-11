@@ -57,6 +57,14 @@
   .chart-legend .swatch { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 5px; }
   .chart-tip { position: absolute; pointer-events: none; background: #0b1224; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; display: none; z-index: 10; }
   .chart-host { position: relative; }
+  table.breakdowns-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.breakdowns-table th, table.breakdowns-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  table.breakdowns-table th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  table.breakdowns-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.breakdowns-table tr.row-toggle:hover { background: rgba(129, 140, 248, 0.07); cursor: pointer; }
+  table.breakdowns-table tr.row-toggle.off td:first-child { opacity: 0.55; }
+  .signed-down { color: var(--bad); }
+  .signed-up   { color: var(--good); }
 </style>
 </head>
 <body>
@@ -351,8 +359,90 @@
     `;
   }
 
+  function renderBreakdowns() {
+    const el = document.getElementById('breakdowns');
+    const buckets = lastNBuckets(18);
+    if (buckets.length === 0) {
+      el.innerHTML = '<h2>Breakdowns por filtro</h2><div class="muted">Sin datos</div>';
+      return;
+    }
+    const lastBucket = buckets[buckets.length - 1];
+    const prevBucket = buckets.length > 1 ? buckets[buckets.length - 2] : null;
+
+    // Count for the user's current set, restricted to a specific bucket.
+    function countWith(activeOverrides, bucketKey) {
+      const req = (() => {
+        let m = 0;
+        for (const f of DATA.filters) {
+          const v = (f.id in activeOverrides) ? activeOverrides[f.id] : state.active[f.id];
+          if (v) m |= (1 << f.bit);
+        }
+        return m;
+      })();
+      const reqOther = req & OTHER_MASK;
+      const reqState = req & STATE_MASK;
+      let total = 0;
+      for (const r of DATA.rows) {
+        if (bucket(r.d) !== bucketKey) continue;
+        if ((r.m & reqOther) !== reqOther) continue;
+        if (reqState === 0) continue;
+        if ((r.m & reqState) === 0) continue;
+        total += r.n;
+      }
+      return total;
+    }
+
+    const baseCurrent = countWith({}, lastBucket);
+    const basePrev    = prevBucket ? countWith({}, prevBucket) : null;
+
+    const rowsHtml = DATA.filters.map(f => {
+      const isOn = !!state.active[f.id];
+      // Marginal effect: difference in current bucket from flipping this filter.
+      const flipped = countWith({ [f.id]: !isOn }, lastBucket);
+      const delta = flipped - baseCurrent;
+      const sign = delta >= 0 ? 'up' : 'down';
+      const arrow = delta >= 0 ? '↑ agrega' : '↓ quita';
+      const deltaTxt = `${arrow} ${Math.abs(delta).toLocaleString('es-CO')}`;
+      return `
+        <tr class="row-toggle ${isOn ? '' : 'off'}" data-fid="${f.id}">
+          <td>${f.id} · ${f.label}</td>
+          <td>${f.group}</td>
+          <td>${isOn ? '✓ activo' : '○ apagado'}</td>
+          <td class="num">${baseCurrent.toLocaleString('es-CO')}</td>
+          <td class="num signed-${sign}">${deltaTxt}</td>
+          <td class="num muted">${basePrev !== null ? basePrev.toLocaleString('es-CO') : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+
+    el.innerHTML = `
+      <h2>Efecto de cada filtro · período actual = ${bucketLabel(lastBucket)}</h2>
+      <table class="breakdowns-table">
+        <thead>
+          <tr>
+            <th>Filtro</th>
+            <th>Grupo</th>
+            <th>Estado</th>
+            <th class="num">Universo actual</th>
+            <th class="num">Si lo invierto</th>
+            <th class="num">Período anterior</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    `;
+    el.querySelectorAll('tr.row-toggle').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const fid = tr.dataset.fid;
+        state.active[fid] = !state.active[fid];
+        // sync checkbox in panel
+        const cb = document.querySelector(`input[type=checkbox][data-fid="${fid}"]`);
+        if (cb) cb.checked = state.active[fid];
+        renderAll();
+      });
+    });
+  }
   // Renderers for next tasks — stubs for now
-  function renderBreakdowns()   { document.getElementById('breakdowns').innerHTML = '<h2>Breakdowns por filtro</h2><div class="muted">Pendiente Task 6</div>'; }
   function renderCalificacion() { document.getElementById('calificacion').innerHTML = '<h2>Calificación</h2><div class="muted">Pendiente Task 7</div>'; }
 
   function renderAll() {
