@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
+<title>Asignados — Explorador de filtros (CO)</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --border: #334155;
+    --accent: #818cf8;
+    --accent-mart: #fbbf24;
+    --text: #f8fafc;
+    --text-secondary: #e2e8f0;
+    --muted: #94a3b8;
+    --bad: #f87171;
+    --good: #4ade80;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .back-link {
+    display: inline-block; padding: 8px 12px; color: var(--muted);
+    border: 1px solid var(--border); border-radius: 6px; margin: 12px;
+  }
+  .back-link:hover { color: var(--text); border-color: var(--accent); text-decoration: none; }
+  .container { max-width: 1280px; margin: 0 auto; padding: 12px 24px 48px; }
+  header.page { margin: 12px 0 18px; }
+  header.page h1 { margin: 0 0 6px; font-size: 22px; }
+  header.page p { margin: 0; color: var(--muted); font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; }
+  .card h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--text-secondary); }
+  /* hooks for next tasks; keep empty for now */
+  .controls, .filter-panel, .chart-main, .breakdowns, .calificacion { /* layout in later tasks */ }
+</style>
+</head>
+<body>
+<a class="back-link" href="../">← Volver (Tableros Marketing Sellers)</a>
+<div class="container">
+  <header class="page">
+    <h1>Leads asignados — Explorador de filtros (CO)</h1>
+    <p id="header-meta">Cargando…</p>
+  </header>
+
+  <div class="card controls" id="controls"></div>
+  <div class="card filter-panel" id="filter-panel"></div>
+  <div class="card chart-main" id="chart-main"></div>
+  <div class="card breakdowns" id="breakdowns"></div>
+  <div class="card calificacion" id="calificacion"></div>
+</div>
+
+<script>
+(async function () {
+  const DATA_URL = 'data.json';
+  const STATE_MASK = 240;      // bits 4..7 (F7..F10)
+  const OTHER_MASK = 7951;     // bits 0..3, 8..12
+  const ALL_ON     = 8191;     // all 13 toggleable bits set
+
+  let DATA = null;
+
+  async function loadData() {
+    const res = await fetch(DATA_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
+    DATA = await res.json();
+  }
+
+  function setMeta() {
+    const el = document.getElementById('header-meta');
+    const dt = new Date(DATA.updated_at);
+    el.textContent = `Actualizado ${dt.toLocaleString('es-CO')} · ${DATA.rows.length.toLocaleString('es-CO')} filas · ${DATA.fuentes.length} fuentes`;
+  }
+
+  try {
+    await loadData();
+    setMeta();
+    // Hooks for next tasks:
+    window.__DATA__ = DATA;
+    window.__MASKS__ = { STATE_MASK, OTHER_MASK, ALL_ON };
+  } catch (e) {
+    document.getElementById('header-meta').textContent = 'Error: ' + e.message;
+    console.error(e);
+  }
+})();
+</script>
+
+</body>
+</html>
