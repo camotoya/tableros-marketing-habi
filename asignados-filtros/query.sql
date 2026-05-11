@@ -4,10 +4,9 @@
 -- F1+F2+F16 applied as structural filters (universe base).
 -- 13 toggleable flags packed into a bitmask (bit 0 = F3, ..., bit 12 = F15).
 
-DECLARE fecha_inicio DATE DEFAULT DATE_SUB(CURRENT_DATE(), INTERVAL 540 DAY);
-
 WITH
 -- F1 + F2: first hubspot_owner_id change per nid, F16 applied (UTC-5).
+-- Window: last 540 days (~18 months). fecha_inicio computed inline.
 asignaciones_base AS (
   SELECT
     nid,
@@ -21,7 +20,7 @@ asignaciones_base AS (
 asignaciones_ventana AS (
   SELECT *
   FROM asignaciones_base
-  WHERE DATE(fecha_asignacion_co) >= fecha_inicio
+  WHERE DATE(fecha_asignacion_co) >= DATE_SUB(CURRENT_DATE(), INTERVAL 540 DAY)
 ),
 
 asignaciones_con_email AS (
