@@ -54,8 +54,10 @@ inmueble_info AS (
     fuente_id,
     LOWER(TRIM(calificacion_del_lead_v2)) AS calificacion_lower,
     check_a_pricing,
-    fecha_creacion,
-    asignacion_descartes_top
+    fecha_creacion
+    -- F15 (asignacion_descartes_top) intencionalmente omitido: la columna no existe
+    -- en `tabla_inmuebles_general` con los accesos disponibles. El bit 12 se
+    -- establece siempre a 1 (toggle dummy) y se documenta en el tooltip.
   FROM `papyrus-data.habi_wh_bi.tabla_inmuebles_general`
 ),
 
@@ -105,8 +107,8 @@ con_flags AS (
       + IF(i.fecha_creacion IS NOT NULL, 1024, 0)
       -- bit 11: F14 nid no nulo
       + IF(i.nid IS NOT NULL, 2048, 0)
-      -- bit 12: F15 asignacion_descartes_top nula
-      + IF(i.asignacion_descartes_top IS NULL, 4096, 0)
+      -- bit 12: F15 (dummy en v1 — columna asignacion_descartes_top no accesible)
+      + 4096
     ) AS bitmask
   FROM asignaciones_con_email a
   LEFT JOIN deal_info d ON a.nid = d.nid

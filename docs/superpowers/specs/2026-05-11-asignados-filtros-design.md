@@ -80,7 +80,7 @@ Replica la lógica del mart desde tablas crudas. Produce **1 fila por asignació
 | `pasa_f12` | `tig.check_a_pricing = 1` | |
 | `pasa_f13` | `tig.fecha_creacion IS NOT NULL` | |
 | `pasa_f14` | `tig.nid IS NOT NULL` | redundante con join, pero se expone para que el toggle sea coherente con el doc |
-| `pasa_f15` | `tig.asignacion_descartes_top IS NULL` | |
+| `pasa_f15` | `1` (dummy en v1) | La columna `asignacion_descartes_top` no existe en `tabla_inmuebles_general` con los accesos disponibles. El toggle se mantiene visible pero el flag siempre vale 1 (no excluye nada). Por aclarar con Data&BI cuál es la columna real. |
 
 **Nota importante sobre F7–F10 (semántica OR dentro del grupo Estado):** en el mart oficial estos cuatro flags están combinados como un `IN (...)` único sobre `estado` — esto es OR dentro del grupo, no AND. En el tablero los exponemos por separado para que cada checkbox represente un estado individual. Para cada asignación, **a lo sumo uno** de `pasa_f7..pasa_f10` será true (corresponde al estado real del deal); los otros 3 serán false. Si el estado del deal no es ninguno de los 4 permitidos, los 4 flags serán false.
 
