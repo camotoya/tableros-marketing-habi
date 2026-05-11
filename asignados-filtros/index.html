@@ -43,8 +43,6 @@
   .filter-row .lock { color: var(--muted); font-size: 11px; }
   .filter-row .info { color: var(--muted); cursor: help; }
   .filter-row.locked { opacity: 0.7; }
-  .warn-banner { background: rgba(248, 113, 113, 0.12); border: 1px solid var(--bad); color: var(--bad); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; font-size: 13px; display: none; }
-  .warn-banner.show { display: block; }
   .controls-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
   .chip-group { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
   .chip { padding: 6px 12px; cursor: pointer; background: transparent; color: var(--text-secondary); border: 0; font-size: 13px; }
@@ -112,16 +110,12 @@
     return m;
   }
 
-  function isStateGroupActive(req) {
-    return (req & STATE_MASK) !== 0;
-  }
-
   async function loadData() {
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
     DATA = await res.json();
-    // Default state: all filters on
-    for (const f of DATA.filters) state.active[f.id] = true;
+    // Default state: all filters off (universo crudo F1+F2). User adds filters by checking.
+    for (const f of DATA.filters) state.active[f.id] = false;
   }
 
   function setMeta() {
@@ -164,8 +158,9 @@
   // --- Filter evaluation ---
   function rowPassesUser(row, reqOther, reqState) {
     if ((row.m & reqOther) !== reqOther) return false;
-    if (reqState === 0) return false;  // degenerate: no states allowed
-    if ((row.m & reqState) === 0) return false;
+    // State group: inactive when no state filters checked (any state passes).
+    // If ≥1 checked, OR semantics — deal must match at least one allowed state.
+    if (reqState !== 0 && (row.m & reqState) === 0) return false;
     return true;
   }
   function rowPassesMart(row) {
@@ -246,7 +241,7 @@
       renderAll();
     });
     el.querySelector('[data-action="reset"]').addEventListener('click', () => {
-      for (const f of DATA.filters) state.active[f.id] = true;
+      for (const f of DATA.filters) state.active[f.id] = false;
       state.granularity = 'week';
       state.showMart = true;
       renderAll();
@@ -286,7 +281,7 @@
 
     el.innerHTML = `
       <h2>Filtros</h2>
-      <div class="warn-banner" id="state-warn">⚠ Los 4 estados (F7–F10) están apagados — el universo será 0. Activá al menos uno para ver datos.</div>
+      <p class="muted" style="margin:0 0 12px;font-size:12px;">Default: ningún filtro aplicado (universo crudo = leads con primera asignación de owner). Marca filtros para excluir leads que no cumplan esa regla. Grupo Estado funciona como OR entre los marcados; si dejas los 4 sin marcar, el filtro de estado se ignora.</p>
       <div class="filter-groups">
         ${lockedRows}
         ${groupsHtml}
@@ -299,14 +294,6 @@
         renderAll();
       });
     });
-    updateStateWarn();
-  }
-
-  function updateStateWarn() {
-    const req = userBitmask();
-    const warn = document.getElementById('state-warn');
-    if (!warn) return;
-    warn.classList.toggle('show', !isStateGroupActive(req));
   }
 
   function renderChartMain() {
@@ -391,8 +378,7 @@
       for (const r of DATA.rows) {
         if (bucket(r.d) !== bucketKey) continue;
         if ((r.m & reqOther) !== reqOther) continue;
-        if (reqState === 0) continue;
-        if ((r.m & reqState) === 0) continue;
+        if (reqState !== 0 && (r.m & reqState) === 0) continue;
         total += r.n;
       }
       return total;
@@ -522,7 +508,6 @@
   }
 
   function renderAll() {
-    updateStateWarn();
     renderChartMain();
     renderBreakdowns();
     renderCalificacion();
