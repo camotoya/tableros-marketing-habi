@@ -419,11 +419,22 @@ jobs:
         run: |
           python3 prioridad-mm/build_data.py /tmp/prioridad-mm-raw.json prioridad-mm/data.json
 
+      - name: Query BigQuery — funnel-fuentes (CO)
+        if: always()
+        run: |
+          bq query --use_legacy_sql=false --format=json --max_rows=100000 \
+            < funnel-fuentes/query.sql > /tmp/funnel-fuentes-raw.json
+
+      - name: Build funnel-fuentes/data.json
+        if: always()
+        run: |
+          python3 scripts/funnel_fuentes_to_json.py /tmp/funnel-fuentes-raw.json funnel-fuentes/data.json
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add incompletos-colombia/data.json tablero-marketing/data.json tablero-marketing/antifunnel.json tablero-marketing/mm_sin_inmo_states.json okr-marketing/data.json pmax-mexico-quality/data.json pmax-mexico-quality/states.json creativo-pamela/data.json incompletos-direccion/data.json marketing-wbr/data.json wbr-2-0/data.json asignados-filtros/data.json asignados-creacion/data.json prioridad-mm/data.json
+          git add incompletos-colombia/data.json tablero-marketing/data.json tablero-marketing/antifunnel.json tablero-marketing/mm_sin_inmo_states.json okr-marketing/data.json pmax-mexico-quality/data.json pmax-mexico-quality/states.json creativo-pamela/data.json incompletos-direccion/data.json marketing-wbr/data.json wbr-2-0/data.json asignados-filtros/data.json asignados-creacion/data.json prioridad-mm/data.json funnel-fuentes/data.json
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
