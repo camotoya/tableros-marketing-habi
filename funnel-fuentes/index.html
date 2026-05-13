@@ -46,6 +46,24 @@
     button.toggle:hover:not(.active) { background: #475569; }
     .main { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 24px; }
     .footer-meta { color: #64748b; font-size: 11px; margin-top: 16px; text-align: right; }
+    table.funnel { width: 100%; border-collapse: collapse; }
+    table.funnel th, table.funnel td {
+      padding: 12px 16px; text-align: right; border-bottom: 1px solid #334155;
+      font-variant-numeric: tabular-nums;
+    }
+    table.funnel th { font-size: 12px; color: #94a3b8; font-weight: 600; }
+    table.funnel th.stage-col, table.funnel td.stage-col { text-align: left; }
+    table.funnel td .count { font-size: 18px; font-weight: 600; }
+    table.funnel td .step-pct { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+    table.funnel td.no-data { color: #64748b; font-style: italic; }
+    table.funnel tr:hover td { background: #273449; }
+    .no-deal-chip {
+      display: inline-block; margin-top: 4px; padding: 2px 6px;
+      background: #475569; border-radius: 4px; font-size: 10px; color: #cbd5e1;
+    }
+    .source-pill {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
+    }
   </style>
 </head>
 <body>
@@ -152,8 +170,59 @@
     }
 
     function renderFunnel() {
-      const main = document.getElementById('main');
-      main.innerHTML = '<p style="color:#94a3b8">(funnel placeholder — Task 9)</p>';
+      const {totals, completionsNoDeal} = aggregateFunnel();
+
+      // Calcular % step→step por fuente (skipping null values).
+      const stepPct = {};
+      for (const s of SOURCES) {
+        stepPct[s.id] = {};
+        let prev = null;
+        for (const st of STAGES) {
+          const v = totals[s.id][st.id];
+          if (v === null) { stepPct[s.id][st.id] = null; prev = null; continue; }
+          if (prev === null || prev === 0) { stepPct[s.id][st.id] = null; }
+          else { stepPct[s.id][st.id] = v / prev; }
+          prev = v;
+        }
+      }
+
+      // Heatmap por fila: color basado en % step→step relativo entre las 3 fuentes.
+      function heatColor(pct) {
+        if (pct === null || pct === undefined) return 'transparent';
+        // 0% rojo → 100% verde, vía amarillo.
+        const r = Math.round(255 * (1 - pct));
+        const g = Math.round(180 * pct);
+        return `rgba(${r}, ${g}, 80, 0.15)`;
+      }
+
+      let html = '<table class="funnel"><thead><tr><th class="stage-col">Etapa</th>';
+      for (const s of SOURCES) {
+        html += `<th><span class="source-pill" style="background:${s.color}"></span>${s.label}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      for (let i = 0; i < STAGES.length; i++) {
+        const st = STAGES[i];
+        html += `<tr><td class="stage-col">${st.label}</td>`;
+        for (const s of SOURCES) {
+          const v = totals[s.id][st.id];
+          const pct = stepPct[s.id][st.id];
+          if (v === null) {
+            html += `<td class="no-data" title="Sin tracking — pixel solo en habi.co">—</td>`;
+          } else {
+            const pctStr = pct === null ? '' : ` <span class="step-pct">${(pct*100).toFixed(0)}% ↓</span>`;
+            const bg = heatColor(pct);
+            html += `<td style="background:${bg}"><div class="count">${v.toLocaleString('es-CO')}</div>${pctStr}`;
+            if (st.id === 'lead_hubspot' && completionsNoDeal[s.id] > 0) {
+              html += `<div class="no-deal-chip" title="Form completado pero sin deal vinculado en ventana">${completionsNoDeal[s.id]} sin deal</div>`;
+            }
+            html += '</td>';
+          }
+        }
+        html += '</tr>';
+      }
+      html += '</tbody></table>';
+      document.getElementById('main').innerHTML = html;
     }
 
     function renderTendencia() {
