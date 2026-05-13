@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
+<title>Marketing Sellers · Docs</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --card-2: #273449;
+    --border: #334155;
+    --text-title: #f8fafc;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-muted-2: #64748b;
+    --accent: #818cf8;
+    --code-bg: #0a1020;
+  }
+  body.light {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --card-2: #eef2ff;
+    --border: #e2e8f0;
+    --text-title: #0f172a;
+    --text: #334155;
+    --text-muted: #64748b;
+    --text-muted-2: #94a3b8;
+    --accent: #6366f1;
+    --code-bg: #f1f5f9;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--text); min-height: 100vh;
+    transition: background .2s, color .2s; line-height: 1.55;
+  }
+  .layout { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; max-width: 1400px; margin: 0 auto; }
+  aside {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    border-right: 1px solid var(--border); padding: 24px 16px;
+    background: var(--card);
+  }
+  aside .back { display: inline-block; color: var(--text-muted); text-decoration: none; font-size: 12.5px; margin-bottom: 18px; }
+  aside .back:hover { color: var(--accent); }
+  aside h1 { font-size: 16px; color: var(--text-title); font-weight: 600; margin-bottom: 4px; }
+  aside .sub { font-size: 12px; color: var(--text-muted); margin-bottom: 22px; }
+  aside nav a {
+    display: block; padding: 8px 10px; margin: 2px 0; border-radius: 6px;
+    color: var(--text-muted); text-decoration: none; font-size: 13.5px;
+    transition: background .12s, color .12s;
+  }
+  aside nav a:hover { background: var(--card-2); color: var(--text); }
+  aside nav a.active { background: var(--accent); color: #0f172a; font-weight: 600; }
+  aside .meta { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted-2); }
+  .theme-btn {
+    position: absolute; top: 18px; right: 18px; background: var(--card-2);
+    border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px;
+    padding: 3px 9px; font-size: 13px; cursor: pointer;
+  }
+  .theme-btn:hover { color: var(--accent); }
+
+  main { padding: 48px 56px; max-width: 980px; }
+  section { margin-bottom: 56px; scroll-margin-top: 24px; }
+  section.hidden { display: none; }
+  h2 { font-size: 26px; color: var(--text-title); font-weight: 600; margin-bottom: 6px; }
+  h2 .accent { color: var(--accent); }
+  h3 { font-size: 17px; color: var(--text-title); font-weight: 600; margin: 28px 0 10px; }
+  h4 { font-size: 14px; color: var(--text-title); font-weight: 600; margin: 18px 0 6px; }
+  p { margin: 10px 0; color: var(--text); }
+  .lead { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+  a.inline { color: var(--accent); text-decoration: none; border-bottom: 1px dashed var(--border); }
+  a.inline:hover { border-bottom-style: solid; }
+  code, .mono { font-family: 'SF Mono', Monaco, Consolas, 'Courier New', monospace; font-size: 12.5px; }
+  code {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 5px; color: var(--text); font-size: 12px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px 16px; overflow-x: auto; font-size: 12.5px;
+    color: var(--text); margin: 12px 0;
+  }
+  pre code { background: transparent; border: 0; padding: 0; font-size: 12.5px; }
+  ul { padding-left: 22px; margin: 10px 0; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px; }
+  th, td {
+    text-align: left; padding: 9px 12px;
+    border-bottom: 1px solid var(--border); vertical-align: top;
+  }
+  th { color: var(--text-muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .03em; }
+  td .mono-sm { font-family: 'SF Mono', Monaco, monospace; font-size: 11.5px; color: var(--text-muted); }
+  .badge {
+    display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 10.5px;
+    font-weight: 600; letter-spacing: .03em; text-transform: uppercase;
+  }
+  .badge-co { background: rgba(129,140,248,.18); color: var(--accent); }
+  .badge-mx { background: rgba(52,211,153,.18); color: #34d399; }
+  .badge-both { background: rgba(251,191,36,.18); color: #fbbf24; }
+  .callout {
+    margin: 14px 0; padding: 12px 16px; border-radius: 6px;
+    background: var(--card); border-left: 3px solid var(--accent);
+    font-size: 13px;
+  }
+  .callout strong { color: var(--text-title); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+  .grid-2 .box { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; }
+  .grid-2 h4 { margin-top: 0; }
+
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+    main { padding: 32px 24px; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <a class="back" href="../">← Volver al Hub</a>
+    <h1>Marketing Sellers</h1>
+    <p class="sub">Documentación de datos</p>
+    <nav>
+      <a href="#tablas" data-section="tablas" class="active">📊 Tablas</a>
+      <a href="#fuentes" data-section="fuentes">📥 Fuentes</a>
+      <a href="#canales" data-section="canales">🛤️ Canales</a>
+      <a href="#utm" data-section="utm">🔗 Cruce UTM</a>
+    </nav>
+    <div class="meta">
+      Actualizado: 2026-05-13<br>
+      Versión: 1.0 (inicial)<br>
+      Sin auto-update (manual).
+      <button class="theme-btn" id="themeToggle" onclick="toggleTheme()" aria-label="Tema">🌙</button>
+    </div>
+  </aside>
+
+  <main>
+
+    <!-- ========== SECCIÓN 1: TABLAS ========== -->
+    <section id="tablas">
+      <h2>Diccionario de <span class="accent">tablas</span></h2>
+      <p class="lead">Las tablas core que usamos para analytics y BI de marketing sellers, con su rol y los joins clave. <code>nid</code> es la llave de join transversal con HubSpot/CRM.</p>
+
+      <h3>Catálogo</h3>
+      <table>
+        <thead>
+          <tr><th>Rol</th><th>CO</th><th>MX</th><th>Descripción</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Mart de leads</strong> (analítica)</td>
+            <td><span class="mono-sm">papyrus-data.habi_wh_bi.tabla_inmuebles_general</span></td>
+            <td><span class="mono-sm">papyrus-data-mx.habi_wh_bi.tabla_inmuebles_general</span></td>
+            <td>Wide table denormalizada, una fila por lead con inmueble, fuente, fechas y estado. Base de la mayoría de tableros.</td>
+          </tr>
+          <tr>
+            <td><strong>Histórico estado MM</strong></td>
+            <td><span class="mono-sm">sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2</span></td>
+            <td><span class="mono-sm">sellers-main-prod.mx_rds_staging.habi_db_history_state</span></td>
+            <td>Log append-only del funnel Market Maker. Una fila por transición de estado.</td>
+          </tr>
+          <tr>
+            <td><strong>Histórico estado Inmo</strong></td>
+            <td><span class="mono-sm">sellers-main-prod.co_rds_staging.habi_db_history_state_real_estate</span></td>
+            <td><span class="mono-sm">sellers-main-prod.mx_rds_staging.habi_db_history_state_real_estate</span></td>
+            <td>Log del funnel Inmobiliaria. Activa desde 2026-03-12.</td>
+          </tr>
+          <tr>
+            <td><strong>Catálogo de estados</strong></td>
+            <td><span class="mono-sm">sellers-main-prod.co_rds_staging.habi_db_tabla_estados</span></td>
+            <td><span class="mono-sm">sellers-main-prod.mx_rds_staging.habi_db_state</span></td>
+            <td>Diccionario <code>id → label</code>. 72 estados. Los IDs son compartidos entre MM y Inmo; el significado depende del funnel.</td>
+          </tr>
+          <tr>
+            <td><strong>Negocio/lead</strong> (OLTP)</td>
+            <td><span class="mono-sm">sellers-main-prod.co_rds_staging.habi_db_tabla_negocio_inmueble</span></td>
+            <td><span class="mono-sm">sellers-main-prod.mx_rds_staging.habi_db_property_deal</span></td>
+            <td>Réplica del OLTP. Una fila por negocio con estado actual, FKs a inmueble y contacto.</td>
+          </tr>
+          <tr>
+            <td><strong>Inmueble</strong> (OLTP)</td>
+            <td><span class="mono-sm">sellers-main-prod.co_rds_staging.habi_db_tabla_inmueble_v2</span></td>
+            <td><span class="mono-sm">sellers-main-prod.mx_rds_staging.habi_db_property</span></td>
+            <td>Atributos físicos del activo: área, baños, habitaciones, garajes, tipo, FK localización.</td>
+          </tr>
+          <tr>
+            <td><strong>CRM HubSpot</strong> <span class="badge badge-both">Global</span></td>
+            <td colspan="2"><span class="mono-sm">sellers-main-prod.hubspot.deals</span></td>
+            <td>Réplica del CRM. Una fila por deal con <code>dealstage</code>, <code>hubspot_owner_id</code>, <code>aplica_para_inmobiliaria</code>, <code>sub_fuente</code> y muchos campos custom.</td>
+          </tr>
+          <tr>
+            <td><strong>Bridge Segment↔Deal</strong> <span class="badge badge-both">Global</span></td>
+            <td colspan="2"><span class="mono-sm">sellers-main-prod.top_funnel.web_global_api_business</span></td>
+            <td>Bisagra entre la sesión web y el deal. Emite el <code>uuid</code> (= backbone_uuid) que une el <code>anonymous_id</code> de Segment con el <code>deal_uuid</code> del OLTP. Sin esto no hay atribución funnel-web ↔ HubSpot.</td>
+          </tr>
+          <tr>
+            <td><strong>Mart asignados WBR</strong> <span class="badge badge-both">Global</span></td>
+            <td colspan="2"><span class="mono-sm">papyrus-master.sellers_data_mart.sellers_leads_asignados_marketing_wbr_mart</span></td>
+            <td>Fuente oficial del número de asignados (16 filtros). Una fila por lead asignado con día/semana/mes, fuente, calificación, columna <code>pais</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>Diccionario UTM</strong></td>
+            <td><span class="mono-sm">sellers-main-prod.bi_co.registro_unico_utm_mkt_colombia</span></td>
+            <td><span class="mono-sm">sellers-main-prod.bi_mx.registro_unico_utm_mkt_mexico</span></td>
+            <td><strong>Tabla externa sobre Google Sheets</strong> (editable manualmente). Mapea <code>campana_mercadeo_original</code> a la jerarquía de canales. Ver <a href="#utm" class="inline">Cruce UTM</a>.</td>
+          </tr>
+          <tr>
+            <td><strong>Inversión diaria</strong></td>
+            <td><span class="mono-sm">papyrus-data.habi_wh_bi.resumen_inversiones_mkt_co</span></td>
+            <td><span class="mono-sm">papyrus-data-mx.habi_wh_bi.resumen_inversiones_mkt_mx</span></td>
+            <td>Spend, clicks e impressions diarios por campaña × plataforma. Base de CAC y ROAS.</td>
+          </tr>
+          <tr>
+            <td><strong>Segment pages</strong> (pageviews)</td>
+            <td><span class="mono-sm">sellers-main-prod.co_segment_profiles.pages</span></td>
+            <td><span class="mono-sm">sellers-main-prod.mx_segment_profiles.pages</span></td>
+            <td>Pageviews tracked server-side. Filtrar por <code>context_page_path</code>. Clave para análisis de funnel de formulario web.</td>
+          </tr>
+          <tr>
+            <td><strong>Segment select_content</strong></td>
+            <td><span class="mono-sm">sellers-main-prod.co_segment_profiles.select_content</span></td>
+            <td><span class="mono-sm">sellers-main-prod.mx_segment_profiles.select_content</span></td>
+            <td>Eventos de selección/click. Único lugar donde coexisten <code>anonymous_id</code> y <code>backbone_uuid</code> → puente clave para el chain Segment→Deal.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Llaves de join</h3>
+      <ul>
+        <li><code>nid</code> — clave transversal. Une <code>tabla_inmuebles_general</code> ↔ <code>habi_db_tabla_negocio_inmueble</code> ↔ <code>hubspot.deals</code>.</li>
+        <li><code>negocio_id</code> — para joins con los logs de estado (<code>h.negocio_id = tni.id</code>, no con <code>nid</code>).</li>
+        <li><code>backbone_uuid</code> — chain Segment → Deal: <code>anonymous_id</code> ↔ <code>select_content.backbone_uuid</code> ↔ <code>web_global_api_business.uuid</code> ↔ <code>habi_db_tabla_negocio_inmueble.uuid</code> ↔ <code>nid</code>.</li>
+      </ul>
+
+      <h3>Diferencias de naming CO vs MX</h3>
+      <ul>
+        <li>CO usa español: <code>tabla_negocio_inmueble</code>, <code>tabla_inmueble_v2</code>, <code>last_estado_id</code>, <code>fecha_creacion</code>.</li>
+        <li>MX usa inglés: <code>property_deal</code>, <code>property</code>, <code>last_state_id</code>, <code>date_create</code>.</li>
+        <li>Campos equivalentes 1-a-1, solo cambia el nombre.</li>
+      </ul>
+
+      <div class="callout">
+        <strong>Volúmenes (~2026-04):</strong> CO leads ~4M, MX leads ~1.66M, HubSpot deals global ~5.4M. <code>web_global_api_business</code> ~17M sesiones.
+      </div>
+    </section>
+
+    <!-- ========== SECCIÓN 2: FUENTES ========== -->
+    <section id="fuentes" class="hidden">
+      <h2>Fuentes de <span class="accent">leads</span></h2>
+      <p class="lead">Una <em>fuente</em> es el canal de entrada al CRM — <strong>de dónde llega el lead</strong>. Está codificada en <code>fuente_id</code> (integer) y <code>fuente</code> (string) en <code>tabla_inmuebles_general</code> y otras tablas.</p>
+
+      <h3>Mapeo de fuente_id</h3>
+      <table>
+        <thead>
+          <tr><th>fuente_id</th><th>CO (label)</th><th>MX (label)</th><th>Descripción</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>3</strong></td><td><code>WEB</code></td><td><code>WEB</code></td><td>Formulario web público: <code>habi.co/formulario-inmueble/*</code> o <code>habi.mx/formulario-inmueble/*</code>. Es la fuente principal de volumen.</td></tr>
+          <tr><td><strong>7</strong></td><td><code>Estudio Inmueble</code></td><td><code>Estudio Inmueble</code></td><td>Habímetro — el simulador de valor comercial online (<code>habi.co/habimetro/valor-comercial-en-linea</code>).</td></tr>
+          <tr><td><strong>20</strong></td><td><code>CRM</code></td><td>—</td><td>Lead creado directo en HubSpot. Solo CO.</td></tr>
+          <tr><td><strong>35</strong></td><td><code>comercial</code></td><td><code>Comercial</code></td><td>Base de datos del equipo comercial. Lead trabajado offline.</td></tr>
+          <tr><td><strong>39</strong></td><td><code>Broker</code></td><td><code>Broker</code></td><td>Lead aportado por un broker/inmobiliaria asociada.</td></tr>
+          <tr><td><strong>46</strong></td><td>—</td><td><code>Propiedades</code></td><td>Solo MX. Scraping/listing externos.</td></tr>
+          <tr><td><strong>47</strong></td><td><code>lead_forms</code></td><td><code>Lead Forms</code></td><td>Lead Forms de Meta (Facebook/Instagram). En CO también <code>37</code>, <code>41</code>, <code>42</code> se mapean a Leadforms en algunos tableros.</td></tr>
+          <tr><td>1</td><td><code>Ventana</code></td><td><code>Ventana</code></td><td><strong>Excluida siempre</strong> de análisis de marketing (2M leads CO, no operativos).</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Sub-fuente en HubSpot</h3>
+      <p>El campo <code>sub_fuente</code> en <code>hubspot.deals</code> permite cortar fuentes en variantes más finas. Ejemplo conocido:</p>
+      <ul>
+        <li><code>fuente='WEB'</code> + <code>sub_fuente='Ayuda Venta'</code> → form Inmo hospedado en <code>ayudaventas-habi-web.vercel.app</code>. NO pasa por el chain UUID del backbone.</li>
+        <li><code>fuente='WEB'</code> + <code>sub_fuente=NULL</code> → formulario estándar de habi.co (con o sin redirect <code>utm_content=help_to_sell</code>).</li>
+      </ul>
+
+      <h3>MM vs Inmo</h3>
+      <p>Cualquier fuente puede generar leads para MM (Market Maker = compra directa Habi) o para Inmo (Inmobiliaria = listing asistido). La bifurcación se decide después de la calificación.</p>
+      <ul>
+        <li><strong>CO</strong>: campo <code>aplica_para_inmobiliaria</code> en <code>hubspot.deals</code>. <code>'true'</code>/<code>'1'</code> = Inmo.</li>
+        <li><strong>MX</strong>: usar columna <code>inmobiliaria</code> en <code>tabla_inmuebles_general</code> (STRING <code>'0'</code> = MM, <code>'1'</code> = Inmo). <code>aplica_para_inmobiliaria</code> en HubSpot viene NULL en MX, no sirve.</li>
+      </ul>
+
+      <div class="callout">
+        <strong>Detalle MX</strong>: <code>fuente_id=3 (WEB)</code> con <code>inmobiliaria='0'</code> y precio ≥ 4M, en zona AMVM, 30 días sin gestión → se entrega a Pulppo (partner que recibe leads no calificados). Query: <code>habi/queries/leads_pulppo_mx.sql</code>.
+      </div>
+    </section>
+
+    <!-- ========== SECCIÓN 3: CANALES ========== -->
+    <section id="canales" class="hidden">
+      <h2>Canales de <span class="accent">tráfico</span></h2>
+      <p class="lead">El <em>canal</em> es el medio publicitario por el que el lead llegó al sitio: Paid Search, Paid Social, Organic, Direct, Referral, etc. Es ortogonal a la fuente — un lead puede entrar por <code>WEB</code> (fuente) y haber venido de <code>Paid Social</code> (canal).</p>
+
+      <h3>Jerarquía de canalización</h3>
+      <p>El diccionario UTM (ver <a href="#utm" class="inline">siguiente sección</a>) resuelve cada lead a una jerarquía de 5 niveles:</p>
+      <table>
+        <thead>
+          <tr><th>Nivel</th><th>Campo</th><th>Ejemplos</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td><code>mkt_channel_big</code></td><td>Paid, Organic, Direct, Referral, Other</td></tr>
+          <tr><td>2</td><td><code>mkt_channel_medium</code></td><td>Performance, Brand, SEO, CRM, Comercial</td></tr>
+          <tr><td>3</td><td><code>mkt_channel_small</code></td><td>Paid Search Brand, Paid Search Non-brand, Paid Social, Display, etc.</td></tr>
+          <tr><td>4</td><td><code>mkt_media</code></td><td>Search, Social, Display, Direct, Email</td></tr>
+          <tr><td>5</td><td><code>mkt_platform</code></td><td>Google, Meta, TikTok, Bing, Pinterest, etc.</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Canal en el mart vs canal en HubSpot</h3>
+      <div class="grid-2">
+        <div class="box">
+          <h4>Mart (<code>tabla_inmuebles_general</code>)</h4>
+          <p>Campo <code>canal_mercadeo</code>: clasificación resuelta (string corto). Ejemplos: <code>Directo</code>, <code>Paid Social</code>, <code>Organic Search</code>, <code>SEM</code>.</p>
+          <p>Para análisis WBR/Dupont usar el resolver del diccionario UTM (más preciso) en vez de este campo.</p>
+        </div>
+        <div class="box">
+          <h4>HubSpot (<code>hubspot.deals</code>)</h4>
+          <p>Campos <code>fuente</code>, <code>sub_fuente</code>, <code>fuente_mercadeo</code>, <code>utm_*</code>. No siempre llenos. Para CO los UTM vienen NULL incluso cuando la URL del referrer los tenía (caso help_to_sell documentado).</p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <strong>WBR (Weekly Business Review)</strong> usa la matriz Dupont por canal: <em>tráfico → registros → calificados → asignados → cerrados</em>. La columna canal en WBR sale del diccionario UTM, no del campo <code>canal_mercadeo</code> directo.
+      </div>
+    </section>
+
+    <!-- ========== SECCIÓN 4: CRUCE UTM ========== -->
+    <section id="utm" class="hidden">
+      <h2>Cruce <span class="accent">UTM</span> para establecer el canal</h2>
+      <p class="lead">La fuente cruda viene en UTMs de la URL al crear el lead. El diccionario UTM (tabla externa sobre Google Sheets) resuelve cada combinación a la jerarquía de canales.</p>
+
+      <h3>El diccionario UTM</h3>
+      <p>Vive en BigQuery como tabla externa apuntando a Google Sheets — editable manualmente:</p>
+      <ul>
+        <li><strong>CO</strong>: <code>sellers-main-prod.bi_co.registro_unico_utm_mkt_colombia</code></li>
+        <li><strong>MX</strong>: <code>sellers-main-prod.bi_mx.registro_unico_utm_mkt_mexico</code></li>
+        <li>Editar en: <a class="inline" href="https://docs.google.com/spreadsheets/d/1sBg4hIBzWDTfZhORtr-HtVIfxvnILmJqCqfzuk1Jpxk" target="_blank">Google Sheet</a> (pestañas <code>CO</code> y <code>MX</code>)</li>
+        <li>BQ lo consulta en vivo; <code>numRows=0</code> en la metadata es esperado.</li>
+      </ul>
+
+      <h3>Cómo se hace el cruce</h3>
+      <p>Llave del join: <code>campana_mercadeo_original</code> del lead matchea con la columna homónima del diccionario. El diccionario tiene una fila por cada combinación única de UTMs vista en producción, mapeada a su clasificación.</p>
+
+      <h4>Query patrón (CO)</h4>
+<pre><code>SELECT
+  g.nid,
+  g.fecha_creacion,
+  g.fuente,
+  utm.mkt_channel_big,
+  utm.mkt_channel_medium,
+  utm.mkt_channel_small,
+  utm.mkt_media,
+  utm.mkt_platform,
+  utm.mkt_campaign_name
+FROM `papyrus-data.habi_wh_bi.tabla_inmuebles_general` g
+LEFT JOIN `sellers-main-prod.bi_co.registro_unico_utm_mkt_colombia` utm
+  ON utm.campana_mercadeo_original = g.campana_mercadeo_original
+WHERE DATE(g.fecha_creacion) >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY);</code></pre>
+
+      <h3>Ejemplos de mapeo</h3>
+      <table>
+        <thead>
+          <tr><th>campana_mercadeo_original</th><th>mkt_channel_big</th><th>mkt_channel_small</th><th>mkt_platform</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="mono-sm">google-cpc-search-brand-co</span></td><td>Paid</td><td>Paid Search Brand</td><td>Google</td></tr>
+          <tr><td><span class="mono-sm">meta-cpc-social-prospecting-co</span></td><td>Paid</td><td>Paid Social</td><td>Meta</td></tr>
+          <tr><td><span class="mono-sm">organic-google-co</span></td><td>Organic</td><td>SEO</td><td>Google</td></tr>
+          <tr><td><span class="mono-sm">direct</span></td><td>Direct</td><td>Direct</td><td>—</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Casos sin match</h3>
+      <p>Cuando un lead tiene UTMs pero el diccionario no tiene la combinación, el join devuelve <code>NULL</code> en todas las columnas <code>mkt_*</code>. Es UTM huérfana — señal de que falta agregar la entrada al sheet.</p>
+
+      <div class="callout">
+        <strong>Cuando agregar entradas:</strong> después de un lanzamiento de campaña nueva, revisar leads con UTMs no resueltas y agregar la fila al sheet. BQ lo toma automáticamente en la siguiente query.
+      </div>
+
+      <h3>Atribución para WBR / OKR</h3>
+      <p>Los tableros oficiales (Marketing WBR, WBR 2.0, OKR Marketing) usan <strong>siempre</strong> el resolver del diccionario para clasificar el canal — nunca el campo <code>canal_mercadeo</code> ni los <code>utm_*</code> crudos. Esto asegura consistencia y permite recalcular history cuando se actualiza el sheet.</p>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  function toggleTheme() {
+    const isLight = document.body.classList.toggle('light');
+    localStorage.setItem('tablero-theme', isLight ? 'light' : 'dark');
+    document.getElementById('themeToggle').textContent = isLight ? '☀️' : '🌙';
+  }
+  // Init theme
+  (function(){
+    const saved = localStorage.getItem('tablero-theme');
+    if (saved !== 'dark') document.body.classList.add('light');
+    document.getElementById('themeToggle').textContent = document.body.classList.contains('light') ? '☀️' : '🌙';
+  })();
+
+  // Nav sections
+  const links = document.querySelectorAll('aside nav a');
+  const sections = document.querySelectorAll('main section');
+  function show(id) {
+    sections.forEach(s => s.classList.toggle('hidden', s.id !== id));
+    links.forEach(l => l.classList.toggle('active', l.dataset.section === id));
+    history.replaceState(null, '', '#' + id);
+    window.scrollTo({top: 0});
+  }
+  links.forEach(l => l.addEventListener('click', e => {
+    e.preventDefault();
+    show(l.dataset.section);
+  }));
+  // Initial section from hash
+  const initial = (location.hash || '#tablas').slice(1);
+  if (document.getElementById(initial)) show(initial);
+</script>
+</body>
+</html>

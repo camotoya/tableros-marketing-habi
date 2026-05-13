@@ -46,12 +46,12 @@
 
   footer { margin-top: 48px; font-size: 12px; color: var(--text-muted-2); }
 
-  .columns { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; max-width: 1180px; width: 100%; }
+  .columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 36px; max-width: 1400px; width: 100%; }
   .section-title { font-size: 22px; font-weight: 600; color: var(--text-title); margin: 0 0 16px; padding: 0 4px; }
   .section-title span { color: var(--accent); }
   .card-stack { display: flex; flex-direction: column; gap: 10px; }
   @media (max-width: 820px) {
-    .columns { grid-template-columns: 1fr; gap: 28px; }
+    .columns { gap: 28px; }
   }
 </style>
 <script>
@@ -141,6 +141,16 @@
         <a class="card" href="https://camotoya.github.io/tableros-marketing-habi/creativo-pamela/">
           <h2><span class="country">MX</span>Creativo Pamela Longoria</h2>
           <p>Funnel cohorte del creativo con la influencer Pamela Longoria vs todo Web Paid Facebook MX, lado a lado.</p>
+        </a>
+      </div>
+    </div>
+
+    <div class="column">
+      <h2 class="section-title"><span>Reference</span></h2>
+      <div class="card-stack">
+        <a class="card" href="https://camotoya.github.io/tableros-marketing-habi/docs-marketing/">
+          <h2><span class="country">CO &amp; MX</span>Marketing Sellers · Docs</h2>
+          <p>Diccionario de tablas, fuentes (fuente_id), canales y cómo se hace el cruce UTM para establecer el canal. Referencia rápida para queries y tableros.</p>
         </a>
       </div>
     </div>
