@@ -64,6 +64,13 @@
     .source-pill {
       display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px;
     }
+    .chart-container { position: relative; height: 380px; margin-bottom: 24px; }
+    table.summary { width: 100%; border-collapse: collapse; font-size: 13px; }
+    table.summary th, table.summary td {
+      padding: 8px 12px; text-align: right; border-bottom: 1px solid #334155;
+    }
+    table.summary th { color: #94a3b8; font-weight: 600; font-size: 11px; }
+    table.summary td:first-child, table.summary th:first-child { text-align: left; }
   </style>
 </head>
 <body>
@@ -225,9 +232,88 @@
       document.getElementById('main').innerHTML = html;
     }
 
+    function bucketDate(dateStr, granularity) {
+      const d = new Date(dateStr + 'T00:00:00');
+      if (granularity === 'D') return dateStr;
+      if (granularity === 'W') {
+        // ISO week starts Monday. Get Monday of this week.
+        const day = d.getDay() === 0 ? 7 : d.getDay();
+        d.setDate(d.getDate() - (day - 1));
+        return d.toISOString().slice(0,10);
+      }
+      if (granularity === 'M') return dateStr.slice(0, 7) + '-01';
+      return dateStr;
+    }
+
+    function aggregateTendencia() {
+      const rows = rowsInWindow();
+      const buckets = new Map(); // key: bucket date, value: {source: leads_total}
+      for (const r of rows) {
+        const b = bucketDate(r.date, state.granularity);
+        if (!buckets.has(b)) {
+          const init = {};
+          for (const s of SOURCES) init[s.id] = 0;
+          buckets.set(b, init);
+        }
+        const v = r.stages.lead_hubspot;
+        if (v !== null && v !== undefined) buckets.get(b)[r.source] += v;
+      }
+      const sortedKeys = [...buckets.keys()].sort();
+      return {labels: sortedKeys, data: sortedKeys.map(k => buckets.get(k))};
+    }
+
+    let chartInstance = null;
     function renderTendencia() {
+      const {labels, data} = aggregateTendencia();
       const main = document.getElementById('main');
-      main.innerHTML = '<p style="color:#94a3b8">(tendencia placeholder — Task 10)</p>';
+      main.innerHTML = `
+        <div class="chart-container"><canvas id="trend-chart"></canvas></div>
+        <table class="summary" id="summary-table"></table>
+      `;
+
+      const datasets = SOURCES.map(s => ({
+        label: s.label,
+        data: data.map(d => d[s.id]),
+        borderColor: s.color,
+        backgroundColor: s.color + '33',
+        tension: 0.3,
+        fill: false,
+      }));
+
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(document.getElementById('trend-chart'), {
+        type: 'line',
+        data: {labels, datasets},
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: {labels: {color: '#e2e8f0'}},
+            tooltip: {mode: 'index', intersect: false},
+          },
+          scales: {
+            x: {ticks: {color: '#94a3b8'}, grid: {color: '#334155'}},
+            y: {ticks: {color: '#94a3b8'}, grid: {color: '#334155'}, beginAtZero: true,
+                title: {display: true, text: 'Leads creados', color: '#94a3b8'}},
+          },
+        },
+      });
+
+      // Summary table
+      let sumHtml = '<thead><tr><th>Fuente</th><th>Leads totales</th><th>Promedio/período</th><th>Mejor período</th></tr></thead><tbody>';
+      for (const s of SOURCES) {
+        const series = data.map(d => d[s.id]);
+        const total = series.reduce((a,b) => a+b, 0);
+        const avg = series.length ? total/series.length : 0;
+        let bestVal = 0, bestIdx = -1;
+        series.forEach((v, i) => { if (v > bestVal) { bestVal = v; bestIdx = i; } });
+        const bestLabel = bestIdx >= 0 ? `${labels[bestIdx]} (${bestVal})` : '—';
+        sumHtml += `<tr><td><span class="source-pill" style="background:${s.color}"></span>${s.label}</td>` +
+                   `<td>${total.toLocaleString('es-CO')}</td>` +
+                   `<td>${avg.toFixed(1)}</td>` +
+                   `<td>${bestLabel}</td></tr>`;
+      }
+      sumHtml += '</tbody>';
+      document.getElementById('summary-table').innerHTML = sumHtml;
     }
 
     // Wire up controls
