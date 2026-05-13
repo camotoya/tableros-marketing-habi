@@ -77,8 +77,111 @@
   <p class="footer-meta" id="footer-meta"></p>
 
   <script>
-    // TODO: implementar en próximos steps
-    console.log("funnel-fuentes — frontend pendiente");
+    const STAGES = [
+      {id: 'direccion',        label: 'Dirección'},
+      {id: 'zona',             label: 'Zona / Ubicación'},
+      {id: 'datos_inmueble',   label: 'Datos inmueble'},
+      {id: 'contacto',         label: 'Contacto'},
+      {id: 'caracteristicas',  label: 'Características'},
+      {id: 'ultimos_detalles', label: 'Últimos detalles'},
+      {id: 'felicitaciones',   label: 'Felicitaciones (form completado)'},
+      {id: 'lead_hubspot',     label: 'Lead en HubSpot'},
+    ];
+    const SOURCES = [
+      {id: 'web_puro',     label: 'Web habi.co',     color: '#60a5fa'},
+      {id: 'help_to_sell', label: 'Help-to-sell',    color: '#fb923c'},
+      {id: 'ayuda_venta',  label: 'Ayuda Venta (Inmo)', color: '#34d399'},
+    ];
+
+    const state = {
+      raw: null,
+      view: 'funnel',
+      windowDays: 30,
+      granularity: 'W',
+    };
+
+    async function load() {
+      const r = await fetch('./data.json', {cache: 'no-cache'});
+      state.raw = await r.json();
+      document.getElementById('footer-meta').textContent =
+        `Generado ${state.raw.generated_at} · ventana lookback ${state.raw.lookback_days}d · TZ ${state.raw.tz}`;
+      render();
+    }
+
+    function rowsInWindow() {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() - state.windowDays);
+      const cutoffStr = cutoff.toISOString().slice(0,10);
+      return state.raw.daily.filter(r => r.date >= cutoffStr);
+    }
+
+    function aggregateFunnel() {
+      // Devuelve {source: {stage: total, ...}, completions_no_deal: {source: total}}
+      const rows = rowsInWindow();
+      const out = {}; const noDeal = {};
+      for (const s of SOURCES) {
+        out[s.id] = {};
+        for (const st of STAGES) out[s.id][st.id] = 0;
+        noDeal[s.id] = 0;
+      }
+      let allNull = {ayuda_venta: true};
+      for (const r of rows) {
+        for (const st of STAGES) {
+          const v = r.stages[st.id];
+          if (v === null) continue;
+          out[r.source][st.id] += v;
+          if (r.source === 'ayuda_venta' && v !== null) allNull.ayuda_venta = false;
+        }
+        if (r.completions_no_deal !== null) noDeal[r.source] += (r.completions_no_deal || 0);
+      }
+      // Si ayuda_venta nunca tuvo data en los stages 1-7, marcar como null para diferenciar de 0.
+      if (allNull.ayuda_venta) {
+        for (const st of STAGES) {
+          if (st.id !== 'lead_hubspot') out.ayuda_venta[st.id] = null;
+        }
+      }
+      return {totals: out, completionsNoDeal: noDeal};
+    }
+
+    function render() {
+      if (!state.raw) return;
+      document.getElementById('granularity-group').style.display =
+        state.view === 'tendencia' ? 'flex' : 'none';
+      if (state.view === 'funnel') renderFunnel();
+      else renderTendencia();
+    }
+
+    function renderFunnel() {
+      const main = document.getElementById('main');
+      main.innerHTML = '<p style="color:#94a3b8">(funnel placeholder — Task 9)</p>';
+    }
+
+    function renderTendencia() {
+      const main = document.getElementById('main');
+      main.innerHTML = '<p style="color:#94a3b8">(tendencia placeholder — Task 10)</p>';
+    }
+
+    // Wire up controls
+    document.querySelectorAll('button.toggle').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.view !== undefined) {
+          document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.view = btn.dataset.view;
+        } else if (btn.dataset.window !== undefined) {
+          document.querySelectorAll('[data-window]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.windowDays = parseInt(btn.dataset.window, 10);
+        } else if (btn.dataset.granularity !== undefined) {
+          document.querySelectorAll('[data-granularity]').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          state.granularity = btn.dataset.granularity;
+        }
+        render();
+      });
+    });
+
+    load();
   </script>
 </body>
 </html>
