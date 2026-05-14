@@ -117,7 +117,8 @@
     DATA = await res.json();
     if (DATA.fuentes.includes('WEB')) state.fuentes.add('WEB');
     else for (const f of DATA.fuentes) state.fuentes.add(f);
-    // filters default: none checked
+    // filters default: F7-F10 checked
+    if (DATA.filters.some(f => f.id === 'F7-F10')) state.filters.add('F7-F10');
   }
 
   function filtersBitmask() {
