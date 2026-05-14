@@ -106,7 +106,7 @@
   const DATA_URL = 'data.json';
   let DATA = null;
   const state = {
-    granularity: 'week',
+    granularity: 'day',
     fuentes: new Set(),    // filled after load
     filters: new Set(),    // filter ids currently checked
   };
@@ -115,7 +115,8 @@
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
     DATA = await res.json();
-    for (const f of DATA.fuentes) state.fuentes.add(f);
+    if (DATA.fuentes.includes('WEB')) state.fuentes.add('WEB');
+    else for (const f of DATA.fuentes) state.fuentes.add(f);
     // filters default: none checked
   }
 
@@ -207,8 +208,8 @@
         <div>
           <h3 style="margin-top:0">Granularidad</h3>
           <div class="chip-group" id="granularity">
-            <button class="chip" data-g="day">Día</button>
-            <button class="chip active" data-g="week">Semana</button>
+            <button class="chip active" data-g="day">Día</button>
+            <button class="chip" data-g="week">Semana</button>
             <button class="chip" data-g="month">Mes</button>
           </div>
         </div>
