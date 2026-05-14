@@ -41,9 +41,50 @@
   .fuente-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px; }
   .fuente-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; cursor: pointer; user-select: none; }
   .fuente-row input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+  .filter-list { display: flex; flex-direction: column; gap: 6px; }
+  .filter-card { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; row-gap: 2px; align-items: start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; user-select: none; transition: border-color 0.1s; }
+  .filter-card:hover { border-color: var(--accent); }
+  .filter-card input { width: 16px; height: 16px; margin-top: 3px; accent-color: var(--accent); cursor: pointer; grid-row: 1 / span 2; }
+  .filter-card .filter-main { font-size: 13px; line-height: 1.4; }
+  .filter-card .filter-sub { font-size: 12px; line-height: 1.5; grid-column: 2; padding-top: 2px; }
+  .gap-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px; }
+  .gap-table th, .gap-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  .gap-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .gap-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .gap-table .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+  .gap-table .bar-cell { width: 200px; }
+  .gap-table .bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .gap-table .bar-fill { height: 100%; }
   .chart-svg { width: 100%; height: 360px; display: block; }
   .chart-legend { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
   .muted { color: var(--muted); }
+  .chart-host { position: relative; }
+  .chart-tooltip {
+    position: absolute;
+    background: #0b1224;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.08s;
+    z-index: 10;
+    min-width: 180px;
+  }
+  .chart-tooltip.show { opacity: 1; }
+  .chart-tooltip .tt-title { font-weight: 600; margin-bottom: 4px; color: var(--text-secondary); }
+  .chart-tooltip .tt-row { display: flex; align-items: center; gap: 6px; line-height: 1.5; }
+  .chart-tooltip .tt-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .chart-tooltip .tt-swatch.line { height: 3px; }
+  .chart-tooltip .tt-label { color: var(--muted); flex: 1; }
+  .chart-tooltip .tt-value { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .chart-svg .hover-rect { fill: transparent; cursor: pointer; }
+  .chart-svg .hover-rect.active ~ .hover-rect-bg,
+  .chart-svg .hover-guide { stroke: var(--muted); stroke-dasharray: 3 3; opacity: 0; }
+  .chart-svg .hover-guide.show { opacity: 0.6; }
 </style>
 </head>
 <body>
@@ -55,7 +96,9 @@
   </header>
 
   <div class="card" id="controls"></div>
+  <div class="card" id="filters"></div>
   <div class="card" id="chart"></div>
+  <div class="card" id="gap"></div>
 </div>
 
 <script>
@@ -64,7 +107,8 @@
   let DATA = null;
   const state = {
     granularity: 'week',
-    fuentes: new Set(),  // filled after load
+    fuentes: new Set(),    // filled after load
+    filters: new Set(),    // filter ids currently checked
   };
 
   async function loadData() {
@@ -72,6 +116,15 @@
     if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
     DATA = await res.json();
     for (const f of DATA.fuentes) state.fuentes.add(f);
+    // filters default: none checked
+  }
+
+  function filtersBitmask() {
+    let m = 0;
+    for (const f of DATA.filters) {
+      if (state.filters.has(f.id)) m |= (1 << f.bit);
+    }
+    return m;
   }
 
   function setMeta() {
@@ -106,20 +159,39 @@
   }
 
   function aggregate() {
-    const out = new Map();
-    for (const r of DATA.rows) {
+    const mart = new Map();
+    const filt = new Map();
+    const req = filtersBitmask();
+
+    for (const r of DATA.mart_rows) {
       if (!state.fuentes.has(r.f)) continue;
       const b = bucket(r.d);
-      out.set(b, (out.get(b) || 0) + r.n);
+      mart.set(b, (mart.get(b) || 0) + r.n);
     }
-    return out;
+    for (const r of DATA.ever_rows) {
+      if (!state.fuentes.has(r.f)) continue;
+      // AND: el row pasa sii todos los bits requeridos están presentes.
+      if ((r.m & req) !== req) continue;
+      const b = bucket(r.d);
+      filt.set(b, (filt.get(b) || 0) + r.n);
+    }
+    return { mart, filt };
   }
 
   function lastNBuckets(n) {
-    const agg = aggregate();
-    const all = [...agg.keys()].sort();
+    const { mart, filt } = aggregate();
+    const all = [...new Set([...mart.keys(), ...filt.keys()])].sort();
     const completed = all.filter(b => !currentBucketIsPartial(b));
-    return completed.slice(-n).map(b => ({ b, n: agg.get(b) }));
+    return completed.slice(-n).map(b => ({
+      b,
+      n_mart: mart.get(b) || 0,
+      n_filt: filt.get(b) || 0,
+    }));
+  }
+
+  function redraw() {
+    renderChart();
+    renderGap();
   }
 
   function renderControls() {
@@ -153,44 +225,348 @@
       btn.addEventListener('click', () => {
         state.granularity = btn.dataset.g;
         el.querySelectorAll('[data-g]').forEach(b => b.classList.toggle('active', b === btn));
-        renderChart();
+        redraw();
       });
     });
     el.querySelectorAll('input[data-fuente]').forEach(cb => {
       cb.addEventListener('change', () => {
         const f = cb.dataset.fuente;
         if (cb.checked) state.fuentes.add(f); else state.fuentes.delete(f);
-        renderChart();
+        redraw();
       });
     });
     el.querySelector('[data-action="all"]').addEventListener('click', () => {
       state.fuentes.clear();
       for (const f of DATA.fuentes) state.fuentes.add(f);
       el.querySelectorAll('input[data-fuente]').forEach(cb => cb.checked = true);
-      renderChart();
+      redraw();
     });
     el.querySelector('[data-action="none"]').addEventListener('click', () => {
       state.fuentes.clear();
       el.querySelectorAll('input[data-fuente]').forEach(cb => cb.checked = false);
+      redraw();
+    });
+  }
+
+  function renderFilters() {
+    const el = document.getElementById('filters');
+    const filterRows = DATA.filters.map(f => {
+      const estadosHint = Array.isArray(f.estados)
+        ? `<div class="filter-sub muted">${f.estados.map(e => '« ' + e + ' »').join(' &nbsp; ')}</div>`
+        : '';
+      return `
+        <label class="filter-card" title="${f.tooltip.replace(/"/g,'&quot;')}">
+          <input type="checkbox" data-fid="${f.id}" ${state.filters.has(f.id) ? 'checked' : ''}/>
+          <span class="filter-main"><strong>${f.id}</strong> · ${f.label}</span>
+          ${estadosHint}
+        </label>
+      `;
+    }).join('');
+    el.innerHTML = `
+      <h3 style="margin-top:0">Filtros sobre ever-asignado
+        <button class="btn" data-faction="all" style="margin-left:8px;">Todos</button>
+        <button class="btn" data-faction="none">Ninguno</button>
+      </h3>
+      <p class="muted" style="margin:0 0 10px;font-size:12px;">Marca filtros para encoger el universo verde hacia el mart. Todos los filtros marcados se aplican con AND.</p>
+      <div class="filter-list">${filterRows}</div>
+    `;
+    el.querySelectorAll('input[data-fid]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const fid = cb.dataset.fid;
+        if (cb.checked) state.filters.add(fid); else state.filters.delete(fid);
+        renderChart();
+      });
+    });
+    el.querySelector('[data-faction="all"]').addEventListener('click', () => {
+      state.filters.clear();
+      for (const f of DATA.filters) state.filters.add(f.id);
+      el.querySelectorAll('input[data-fid]').forEach(cb => cb.checked = true);
       renderChart();
     });
+    el.querySelector('[data-faction="none"]').addEventListener('click', () => {
+      state.filters.clear();
+      el.querySelectorAll('input[data-fid]').forEach(cb => cb.checked = false);
+      renderChart();
+    });
+  }
+
+  const GAP_COLORS = {
+    'F7-F10': '#818cf8',  // indigo
+    'F12':    '#22d3ee',  // cyan
+    'F15':    '#f472b6',  // pink
+    'F3':     '#fb923c',  // orange
+    'F11':    '#a78bfa',  // violet
+    'Otro':   '#64748b',  // gray
+  };
+
+  function aggregateGap() {
+    // Returns:
+    //   byBucket: Map<period, Map<filter, count>>
+    //   filterTotals: Map<filter, total>
+    //   periods: sorted array of periods
+    const byBucket = new Map();
+    const filterTotals = new Map();
+    for (const r of DATA.gap_rows) {
+      if (!state.fuentes.has(r.f)) continue;
+      const b = bucket(r.d);
+      if (!byBucket.has(b)) byBucket.set(b, new Map());
+      const m = byBucket.get(b);
+      m.set(r.bucket, (m.get(r.bucket) || 0) + r.n);
+      filterTotals.set(r.bucket, (filterTotals.get(r.bucket) || 0) + r.n);
+    }
+    return { byBucket, filterTotals };
+  }
+
+  function renderGap() {
+    const el = document.getElementById('gap');
+    const { byBucket, filterTotals } = aggregateGap();
+    const periods = [...byBucket.keys()].filter(b => !currentBucketIsPartial(b)).sort();
+    const last18 = periods.slice(-18);
+
+    if (last18.length === 0) {
+      el.innerHTML = '<h2>Descomposición del gap (ever-asignado pero no en mart)</h2><div class="muted">Sin datos.</div>';
+      return;
+    }
+
+    // Order bands from largest to smallest, "Otro" forced to the end
+    const knownOrder = DATA.gap_band_order.filter(b => b !== 'Otro');
+    const ordered = knownOrder
+      .map(b => [b, filterTotals.get(b) || 0])
+      .sort((a, b) => b[1] - a[1])
+      .map(([b]) => b);
+    if ([...filterTotals.keys()].includes('Otro')) ordered.push('Otro');
+
+    const totalGap = [...filterTotals.values()].reduce((a, b) => a + b, 0);
+
+    // --- Table ---
+    const maxRow = Math.max(1, ...[...filterTotals.values()]);
+    const rowsHtml = ordered.map(b => {
+      const n = filterTotals.get(b) || 0;
+      const pct = totalGap ? (n / totalGap * 100) : 0;
+      const barPct = (n / maxRow * 100);
+      const color = GAP_COLORS[b] || '#94a3b8';
+      return `
+        <tr>
+          <td><span class="swatch" style="background:${color}"></span><strong>${b}</strong></td>
+          <td>${describeBand(b)}</td>
+          <td class="num">${n.toLocaleString('es-CO')}</td>
+          <td class="num">${pct.toFixed(1)}%</td>
+          <td class="bar-cell"><div class="bar"><div class="bar-fill" style="width:${barPct}%;background:${color}"></div></div></td>
+        </tr>
+      `;
+    }).join('');
+
+    // --- Stacked area chart at 100% ---
+    const W = 1180, H = 320, padL = 56, padR = 16, padT = 20, padB = 44;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const x = i => padL + (last18.length === 1 ? innerW/2 : i * innerW / (last18.length - 1));
+    const y = pct => padT + innerH - pct * innerH;  // pct ∈ [0, 1]
+
+    // For each period, compute cumulative shares per band (in `ordered` order)
+    const cumulativeByPeriod = last18.map(b => {
+      const m = byBucket.get(b) || new Map();
+      const total = ordered.reduce((sum, bnd) => sum + (m.get(bnd) || 0), 0) || 1;
+      const result = [];
+      let cum = 0;
+      for (const bnd of ordered) {
+        const v = m.get(bnd) || 0;
+        const start = cum;
+        cum += v / total;
+        result.push({ band: bnd, start, end: cum, raw: v, total });
+      }
+      return result;
+    });
+
+    // Build a path per band (closed polygon)
+    const bandPaths = ordered.map((bnd, bidx) => {
+      const topPoints = cumulativeByPeriod.map((p, i) => x(i) + ',' + y(p[bidx].end));
+      const botPoints = cumulativeByPeriod.map((p, i) => x(i) + ',' + y(p[bidx].start)).reverse();
+      const d = 'M' + topPoints.join(' L') + ' L' + botPoints.join(' L') + ' Z';
+      return `<path d="${d}" fill="${GAP_COLORS[bnd] || '#94a3b8'}" opacity="0.85"/>`;
+    }).join('');
+
+    // Y axis (0%, 25%, 50%, 75%, 100%)
+    const yEls = [];
+    for (let i = 0; i <= 4; i++) {
+      const pct = i / 4;
+      const yy = y(pct);
+      yEls.push(`<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="#1f2a44" opacity="0.5"/>`);
+      yEls.push(`<text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${pct*100}%</text>`);
+    }
+
+    const xTickEvery = last18.length > 12 ? 3 : 2;
+    const xEls = last18.map((b, i) => {
+      if (i % xTickEvery !== 0 && i !== last18.length - 1) return '';
+      return `<text x="${x(i)}" y="${H - padB + 20}" text-anchor="middle" font-size="11" fill="#94a3b8">${bucketLabel(b)}</text>`;
+    }).join('');
+
+    // Hover rects for tooltip
+    const groupW = innerW / last18.length;
+    const hoverRects = last18.map((b, i) => `<rect class="hover-rect" data-idx="${i}" x="${x(i) - groupW/2}" y="${padT}" width="${groupW}" height="${innerH}"/>`).join('');
+
+    const legendHtml = ordered.map(bnd => `
+      <span style="margin-right:14px;display:inline-block;">
+        <span style="display:inline-block;width:12px;height:10px;background:${GAP_COLORS[bnd]||'#94a3b8'};vertical-align:middle;margin-right:5px;border-radius:2px;"></span>
+        ${bnd}
+      </span>
+    `).join('');
+
+    el.innerHTML = `
+      <h2>Descomposición del gap · ¿qué filtro explica las diferencias entre ever-asignado y mart?</h2>
+      <p class="muted" style="margin:0 0 12px;font-size:12px;">
+        Atribución prioritaria: cada lead del gap (ever-asignado pero no en mart) se asigna al primer filtro que falla, en orden de impacto descendente (F7-F10 → F12 → F15 → F3 → F11 → Otro).
+        Total gap en ventana: <strong>${totalGap.toLocaleString('es-CO')}</strong> leads.
+      </p>
+
+      <h3 style="margin:6px 0 8px;">Tabla · contribución total por filtro (ordenada)</h3>
+      <table class="gap-table">
+        <thead>
+          <tr>
+            <th>Filtro</th>
+            <th>Lo que filtra</th>
+            <th class="num">Leads en gap</th>
+            <th class="num">% del gap</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+
+      <h3 style="margin:14px 0 6px;">Gráfica · áreas apiladas al 100% por período</h3>
+      <div class="chart-legend">${legendHtml}</div>
+      <div class="chart-host">
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:320px;">
+          ${yEls.join('')}
+          ${bandPaths}
+          ${xEls}
+          <line class="hover-guide" id="gap-hover-guide" x1="0" y1="${padT}" x2="0" y2="${padT + innerH}" stroke="#94a3b8" stroke-dasharray="3 3"/>
+          ${hoverRects}
+        </svg>
+        <div class="chart-tooltip" id="gap-tooltip"></div>
+      </div>
+    `;
+
+    // Tooltip wiring for stacked area
+    const svg = el.querySelector('svg');
+    const host = el.querySelector('.chart-host');
+    const tip = el.querySelector('#gap-tooltip');
+    const guide = el.querySelector('#gap-hover-guide');
+    el.querySelectorAll('.hover-rect').forEach(r => {
+      r.addEventListener('mouseenter', () => {
+        const i = parseInt(r.dataset.idx, 10);
+        const p = cumulativeByPeriod[i];
+        const total = p[0]?.total || 0;
+        const lines = ordered.map((bnd, idx) => {
+          const seg = p[idx];
+          const pct = total ? (seg.raw / total * 100) : 0;
+          return `
+            <div class="tt-row">
+              <span class="tt-swatch" style="background:${GAP_COLORS[bnd]||'#94a3b8'}"></span>
+              <span class="tt-label">${bnd}</span>
+              <span class="tt-value">${seg.raw.toLocaleString('es-CO')} (${pct.toFixed(1)}%)</span>
+            </div>
+          `;
+        }).join('');
+        tip.innerHTML = `
+          <div class="tt-title">${last18[i]}</div>
+          ${lines}
+          <div class="tt-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">
+            <span class="tt-label">Total gap</span>
+            <span class="tt-value">${total.toLocaleString('es-CO')}</span>
+          </div>
+        `;
+        guide.setAttribute('x1', x(i));
+        guide.setAttribute('x2', x(i));
+        guide.classList.add('show');
+        tip.classList.add('show');
+      });
+      r.addEventListener('mousemove', (e) => {
+        const hostRect = host.getBoundingClientRect();
+        const px = e.clientX - hostRect.left;
+        const py = e.clientY - hostRect.top;
+        const tipW = tip.offsetWidth || 220;
+        let left = px + 14;
+        if (left + tipW > hostRect.width - 8) left = px - tipW - 14;
+        tip.style.left = Math.max(4, left) + 'px';
+        tip.style.top  = Math.max(4, py - 10) + 'px';
+      });
+      r.addEventListener('mouseleave', () => {
+        tip.classList.remove('show');
+        guide.classList.remove('show');
+      });
+    });
+  }
+
+  function describeBand(b) {
+    switch (b) {
+      case 'F7-F10': return 'Estado del deal no en lista permitida';
+      case 'F12':    return 'check_a_pricing distinto de 1';
+      case 'F15':    return 'Marcado como inmobiliaria (proxy)';
+      case 'F3':     return 'Correo del owner no contiene "habi."';
+      case 'F11':    return 'Calificación es N o NH';
+      case 'Otro':   return 'Pasa los 5 filtros visibles pero igual no está en mart (F6 o F15 oficial, sin acceso)';
+      default:       return '';
+    }
   }
 
   function renderChart() {
     const el = document.getElementById('chart');
     const data = lastNBuckets(18);
-    if (data.length === 0 || data.every(d => d.n === 0)) {
+    if (data.length === 0 || data.every(d => d.n_mart === 0 && d.n_filt === 0)) {
       el.innerHTML = `<h2>Asignados · últimos 18 ${state.granularity === 'day' ? 'días' : state.granularity === 'week' ? 'semanas' : 'meses'}</h2><div class="muted">Sin datos (¿revisaste que haya al menos una fuente marcada?)</div>`;
       return;
     }
-    const series = data.map(d => d.n);
-    const maxY = Math.max(1, ...series);
-    const W = 1180, H = 360, padL = 56, padR = 16, padT = 20, padB = 44;
-    const innerW = W - padL - padR, innerH = H - padT - padB;
-    const x = i => padL + (data.length === 1 ? innerW/2 : i * innerW / (data.length - 1));
-    const y = v => padT + innerH - (v / maxY) * innerH;
-    const path = series.map((v, i) => (i ? 'L' : 'M') + x(i) + ',' + y(v)).join(' ');
+    const martSeries = data.map(d => d.n_mart);
+    const filtSeries  = data.map(d => d.n_filt);
+    const ratioSeries = data.map(d => d.n_filt > 0 ? d.n_mart / d.n_filt : 0);
 
+    const maxY  = Math.max(1, ...martSeries, ...filtSeries);
+    // Ratio puede exceder 1 cuando los filtros aplicados son más estrictos que el mart.
+    // maxYR ∈ [1, 1.5] redondeado al 10% más cercano hacia arriba.
+    const observedMaxR = Math.max(...ratioSeries, 1);
+    const maxYR = Math.min(1.5, Math.ceil(observedMaxR * 10) / 10);
+
+    const W = 1180, H = 380, padL = 60, padR = 60, padT = 20, padB = 44;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+
+    // Center of each period along X
+    const xc = i => padL + (data.length === 1 ? innerW/2 : (i + 0.5) * innerW / data.length);
+    const y  = v => padT + innerH - (v / maxY) * innerH;
+    const yR = v => padT + innerH - (v / maxYR) * innerH;
+
+    // Bar geometry: two grouped bars per period
+    const groupW = innerW / data.length;          // total width per period
+    const barW   = Math.max(4, groupW * 0.35);    // each bar
+    const gap    = groupW * 0.06;
+    const offset = (barW + gap) / 2;
+
+    const bars = data.map((d, i) => {
+      const cx = xc(i);
+      const xMart = cx - offset - barW/2 + offset;  // left bar centered at cx - offset
+      const xTig  = cx + offset - barW/2 + offset;  // right
+      // simpler: place mart on the left half, tig on the right half
+      const x1 = cx - offset - barW/2;
+      const x2 = cx + offset - barW/2;
+      const yMart = y(d.n_mart), yTig = y(d.n_filt);
+      const hMart = padT + innerH - yMart;
+      const hTig  = padT + innerH - yTig;
+      return `
+        <rect x="${x1}" y="${yMart}" width="${barW}" height="${hMart}" fill="var(--accent)" opacity="0.9">
+          <title>${d.b} · Mart oficial: ${d.n_mart.toLocaleString('es-CO')}</title>
+        </rect>
+        <rect x="${x2}" y="${yTig}" width="${barW}" height="${hTig}" fill="#34d399" opacity="0.9">
+          <title>${d.b} · Filtrado: ${d.n_filt.toLocaleString('es-CO')}</title>
+        </rect>
+      `;
+    }).join('');
+
+    const ratioPath = ratioSeries.map((v, i) => (i ? 'L' : 'M') + xc(i) + ',' + yR(v)).join(' ');
+    const ratioDots = data.map((d, i) => {
+      const v = ratioSeries[i];
+      return `<circle cx="${xc(i)}" cy="${yR(v)}" r="3.5" fill="#fbbf24"><title>${d.b}: ${(v*100).toFixed(1)}% (${d.n_mart.toLocaleString('es-CO')}/${d.n_filt.toLocaleString('es-CO')})</title></circle>`;
+    }).join('');
+
+    // Y left ticks (counts)
     const yTicks = 5;
     const yEls = [];
     for (let i = 0; i <= yTicks; i++) {
@@ -199,41 +575,137 @@
       yEls.push(`<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="#1f2a44"/>`);
       yEls.push(`<text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${v.toLocaleString('es-CO')}</text>`);
     }
+    // Y right ticks (%)
+    const yRTicks = 5;
+    const yREls = [];
+    for (let i = 0; i <= yRTicks; i++) {
+      const v = i / yRTicks;
+      const yy = yR(v);
+      yREls.push(`<text x="${W - padR + 8}" y="${yy + 4}" text-anchor="start" font-size="11" fill="#94a3b8">${Math.round(v*100)}%</text>`);
+    }
+
     const xTickEvery = data.length > 12 ? 3 : 2;
     const xEls = data.map((d, i) => {
       if (i % xTickEvery !== 0 && i !== data.length - 1) return '';
-      return `<text x="${x(i)}" y="${H - padB + 20}" text-anchor="middle" font-size="11" fill="#94a3b8">${bucketLabel(d.b)}</text>`;
+      return `<text x="${xc(i)}" y="${H - padB + 20}" text-anchor="middle" font-size="11" fill="#94a3b8">${bucketLabel(d.b)}</text>`;
     }).join('');
 
-    const dots = data.map((d, i) => `<circle cx="${x(i)}" cy="${y(d.n)}" r="3" fill="var(--accent)"><title>${d.b}: ${d.n.toLocaleString('es-CO')} asignados</title></circle>`).join('');
-
     const lastIdx = data.length - 1;
-    const lastVal = series[lastIdx];
-    const total = series.reduce((a,b) => a+b, 0);
+    const lastMart = martSeries[lastIdx];
+    const lastFilt = filtSeries[lastIdx];
+    const lastRatio = ratioSeries[lastIdx];
+    const totMart  = martSeries.reduce((a,b) => a+b, 0);
+    const totFilt  = filtSeries.reduce((a,b) => a+b, 0);
     const fuentesActivas = [...state.fuentes];
+    const ratioTotal = totFilt ? (totMart / totFilt * 100).toFixed(1) : '–';
+
+    // Invisible hover rectangles spanning full height per period (capture pointer events)
+    const hoverRects = data.map((d, i) => {
+      const cx = xc(i);
+      const w = groupW;
+      return `<rect class="hover-rect" data-idx="${i}" x="${cx - w/2}" y="${padT}" width="${w}" height="${innerH}" />`;
+    }).join('');
 
     el.innerHTML = `
       <h2>Asignados · últimos 18 ${state.granularity === 'day' ? 'días' : state.granularity === 'week' ? 'semanas' : 'meses'}</h2>
       <div class="chart-legend">
-        Último período: <strong>${lastVal.toLocaleString('es-CO')}</strong> ·
-        Total ventana: <strong>${total.toLocaleString('es-CO')}</strong> ·
-        Fuentes incluidas (${fuentesActivas.length}/${DATA.fuentes.length}): ${fuentesActivas.length === DATA.fuentes.length ? 'Todas' : fuentesActivas.join(', ') || 'Ninguna'}
+        <span style="display:inline-block;width:12px;height:10px;background:var(--accent);vertical-align:middle;margin-right:5px;border-radius:2px;"></span>
+        <strong>Mart oficial</strong> · último ${lastMart.toLocaleString('es-CO')} · total ${totMart.toLocaleString('es-CO')}
+        &nbsp;|&nbsp;
+        <span style="display:inline-block;width:12px;height:10px;background:#34d399;vertical-align:middle;margin-right:5px;border-radius:2px;"></span>
+        <strong>Ever-asignado${state.filters.size ? ` + ${state.filters.size} filtro${state.filters.size > 1 ? 's' : ''}` : ''}</strong> · último ${lastFilt.toLocaleString('es-CO')} · total ${totFilt.toLocaleString('es-CO')}
+        &nbsp;|&nbsp;
+        <span style="display:inline-block;width:14px;height:3px;background:#fbbf24;vertical-align:middle;margin-right:5px;"></span>
+        <strong>% Mart/Filtrado</strong> · último ${(lastRatio*100).toFixed(1)}% · total ${ratioTotal}%
+        &nbsp;|&nbsp;
+        Fuentes (${fuentesActivas.length}/${DATA.fuentes.length}): ${fuentesActivas.length === DATA.fuentes.length ? 'Todas' : fuentesActivas.join(', ') || 'Ninguna'}
       </div>
-      <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        ${yEls.join('')}
-        <path d="${path}" stroke="var(--accent)" stroke-width="2.2" fill="none"/>
-        ${dots}
-        <circle cx="${x(lastIdx)}" cy="${y(lastVal)}" r="4.5" fill="var(--accent)"/>
-        ${xEls}
-      </svg>
+      <div class="chart-host">
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+          ${yEls.join('')}
+          ${bars}
+          <path d="${ratioPath}" stroke="#fbbf24" stroke-width="2" fill="none"/>
+          ${ratioDots}
+          ${yREls.join('')}
+          ${xEls}
+          <line class="hover-guide" id="hover-guide" x1="0" y1="${padT}" x2="0" y2="${padT + innerH}" stroke="#94a3b8" stroke-dasharray="3 3"/>
+          ${hoverRects}
+        </svg>
+        <div class="chart-tooltip" id="chart-tooltip"></div>
+      </div>
     `;
+
+    // Wire up tooltip behaviour
+    const svg = el.querySelector('svg');
+    const host = el.querySelector('.chart-host');
+    const tip = el.querySelector('#chart-tooltip');
+    const guide = el.querySelector('#hover-guide');
+    const rects = el.querySelectorAll('.hover-rect');
+
+    function pxFromViewbox(xVB) {
+      // Convert SVG viewBox x to pixel offset inside the host
+      const rect = svg.getBoundingClientRect();
+      return rect.left - host.getBoundingClientRect().left + (xVB / W) * rect.width;
+    }
+
+    rects.forEach(r => {
+      r.addEventListener('mouseenter', () => {
+        const i = parseInt(r.dataset.idx, 10);
+        const d = data[i];
+        const ratioPct = d.n_filt > 0 ? (d.n_mart / d.n_filt * 100).toFixed(1) : '–';
+        const filtLabel = state.filters.size ? `Ever + ${state.filters.size} filtro${state.filters.size > 1 ? 's' : ''}` : 'Ever-asignado';
+        tip.innerHTML = `
+          <div class="tt-title">${d.b}</div>
+          <div class="tt-row">
+            <span class="tt-swatch" style="background:var(--accent)"></span>
+            <span class="tt-label">Mart oficial</span>
+            <span class="tt-value">${d.n_mart.toLocaleString('es-CO')}</span>
+          </div>
+          <div class="tt-row">
+            <span class="tt-swatch" style="background:#34d399"></span>
+            <span class="tt-label">${filtLabel}</span>
+            <span class="tt-value">${d.n_filt.toLocaleString('es-CO')}</span>
+          </div>
+          <div class="tt-row">
+            <span class="tt-swatch line" style="background:#fbbf24"></span>
+            <span class="tt-label">% Mart/Filtrado</span>
+            <span class="tt-value">${ratioPct}${ratioPct !== '–' ? '%' : ''}</span>
+          </div>
+          <div class="tt-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">
+            <span class="tt-label">Gap (Filtrado − Mart)</span>
+            <span class="tt-value">${(d.n_filt - d.n_mart).toLocaleString('es-CO')}</span>
+          </div>
+        `;
+        guide.setAttribute('x1', xc(i));
+        guide.setAttribute('x2', xc(i));
+        guide.classList.add('show');
+        tip.classList.add('show');
+      });
+      r.addEventListener('mousemove', (e) => {
+        const hostRect = host.getBoundingClientRect();
+        const px = e.clientX - hostRect.left;
+        const py = e.clientY - hostRect.top;
+        const tipW = tip.offsetWidth || 200;
+        // Place to the right of cursor by default; flip to left when near right edge
+        let left = px + 14;
+        if (left + tipW > hostRect.width - 8) left = px - tipW - 14;
+        tip.style.left = Math.max(4, left) + 'px';
+        tip.style.top  = Math.max(4, py - 10) + 'px';
+      });
+      r.addEventListener('mouseleave', () => {
+        tip.classList.remove('show');
+        guide.classList.remove('show');
+      });
+    });
   }
 
   try {
     await loadData();
     setMeta();
     renderControls();
+    renderFilters();
     renderChart();
+    renderGap();
   } catch (e) {
     document.getElementById('header-meta').textContent = 'Error: ' + e.message;
     console.error(e);

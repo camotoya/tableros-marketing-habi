@@ -400,7 +400,7 @@ jobs:
       - name: Query BigQuery — asignados por fecha de creación (CO)
         if: always()
         run: |
-          bq query --use_legacy_sql=false --format=json --max_rows=10000 \
+          bq query --use_legacy_sql=false --format=json --max_rows=100000 \
             < asignados-creacion/query.sql > /tmp/asignados-creacion-raw.json
 
       - name: Build asignados-creacion/data.json
