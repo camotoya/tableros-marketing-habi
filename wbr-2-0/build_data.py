@@ -15,18 +15,35 @@ from collections import defaultdict
 from datetime import date, datetime
 
 
-SHEET_FUENTES_OFFSET = {
-    'TOTAL':            7,
-    'Perfo':           14,
-    'WEB':             21,
-    'lead_forms':      28,
-    'Estudio Inmueble': 35,
-    'CRM':             42,
-    'Broker':          49,
-    'Comercial':       56,
+SHEET_FUENTES_OFFSET_BY_COUNTRY = {
+    'co': {
+        'TOTAL':            7,
+        'Perfo':           14,
+        'WEB':             21,
+        'lead_forms':      28,
+        'Estudio Inmueble': 35,
+        'CRM':             42,
+        'Broker':          49,
+        'Comercial':       56,
+    },
+    # MX: same column offsets — fila por fila el sheet MX tab usa el mismo layout que CO,
+    # salvo que la columna que estaba en CRM (col 42) en MX es Propiedades.
+    'mx': {
+        'TOTAL':            7,
+        'Perfo':           14,
+        'WEB':             21,
+        'lead_forms':      28,
+        'Estudio Inmueble': 35,
+        'Propiedades':     42,
+        'Broker':          49,
+        'Comercial':       56,
+    },
 }
 
-FUENTES_ROW = ['WEB', 'Estudio Inmueble', 'lead_forms', 'CRM', 'Broker', 'Comercial']
+FUENTES_ROW_BY_COUNTRY = {
+    'co': ['WEB', 'Estudio Inmueble', 'lead_forms', 'CRM', 'Broker', 'Comercial'],
+    'mx': ['WEB', 'Estudio Inmueble', 'lead_forms', 'Propiedades', 'Broker', 'Comercial'],
+}
 
 
 def parse_num(s):
@@ -52,10 +69,11 @@ def parse_date(s):
         return None
 
 
-def parse_sheet_weekly(csv_path):
-    """Read OKR CO CSV and extract weekly metas. Returns:
+def parse_sheet_weekly(csv_path, country):
+    """Read OKR CO/MX CSV and extract weekly metas. Returns:
        { 'YYYY-MM-DD' (Monday): { fuente_name: meta } }
     """
+    offsets = SHEET_FUENTES_OFFSET_BY_COUNTRY[country]
     with open(csv_path, 'r', encoding='utf-8') as f:
         rows = list(csv.reader(f))
 
@@ -84,14 +102,15 @@ def parse_sheet_weekly(csv_path):
             continue
         week_iso = desde.isoformat()
         metas = {}
-        for fuente, off in SHEET_FUENTES_OFFSET.items():
+        for fuente, off in offsets.items():
             if off < len(row):
                 metas[fuente] = parse_num(row[off])
         out[week_iso] = metas
     return out
 
 
-def build_country(bq_json, sheet_csv, channels_json, platforms_json):
+def build_country(bq_json, sheet_csv, channels_json, platforms_json, country):
+    fuentes_row = FUENTES_ROW_BY_COUNTRY[country]
     rows = json.load(open(bq_json))
     by_week_raw = defaultdict(dict)
     for r in rows:
@@ -102,7 +121,7 @@ def build_country(bq_json, sheet_csv, channels_json, platforms_json):
             'spend': int(float(r['spend'])) if r.get('spend') is not None else None,
         }
 
-    metas_by_week = parse_sheet_weekly(sheet_csv)
+    metas_by_week = parse_sheet_weekly(sheet_csv, country)
 
     by_week = {}
     totals_by_week = {}
@@ -111,7 +130,7 @@ def build_country(bq_json, sheet_csv, channels_json, platforms_json):
         cells = {}
         meta = metas_by_week.get(w, {})
         raw = by_week_raw.get(w, {})
-        for fuente in FUENTES_ROW:
+        for fuente in fuentes_row:
             cell = raw.get(fuente, {'reg': 0, 'cal': 0, 'asg': 0, 'spend': None})
             cell['meta'] = meta.get(fuente)
             cells[fuente] = cell
@@ -122,15 +141,13 @@ def build_country(bq_json, sheet_csv, channels_json, platforms_json):
         }
 
     # Channels: by_week_channels[w] = { channel: {reg, cal, asg, spend, fuente} }
-    # When the same channel appears under multiple source fuentes (rare data
-    # anomaly e.g. Estudio Inmueble lead with WEB-Paid utm), MERGE counts.
-    # The displayed `fuente` is derived from the channel name (canonical).
     def channel_to_fuente(ch):
         if ch.startswith('WEB ') or ch == 'WEB': return 'WEB'
         if ch.startswith('Estudio Inmueble'): return 'Estudio Inmueble'
         if ch.startswith('lead_forms') or ch.startswith('Lead Forms') or ch == 'lead_forms': return 'lead_forms'
         if ch.startswith('Broker'): return 'Broker'
         if ch.startswith('CRM'): return 'CRM'
+        if ch.startswith('Propiedades'): return 'Propiedades'
         if ch.lower().startswith('comercial'): return 'Comercial'
         return None  # unclassified (long-tail UTM IDs)
 
@@ -179,23 +196,25 @@ def build_country(bq_json, sheet_csv, channels_json, platforms_json):
 
 
 def main():
-    if len(sys.argv) != 6:
-        print(f"Usage: {sys.argv[0]} <bq_co.json> <sheet_co.csv> <bq_channels.json> <bq_platforms.json> <output.json>")
+    if len(sys.argv) != 10:
+        print(f"Usage: {sys.argv[0]} <bq_co> <sheet_co> <bq_ch_co> <bq_pl_co> <bq_mx> <sheet_mx> <bq_ch_mx> <bq_pl_mx> <output>")
         sys.exit(1)
 
-    bq_co, sheet_co, bq_channels, bq_platforms, output = sys.argv[1:]
+    bq_co, sheet_co, bq_ch_co, bq_pl_co, bq_mx, sheet_mx, bq_ch_mx, bq_pl_mx, output = sys.argv[1:]
 
     data = {
         'updated': date.today().isoformat(),
-        'co': build_country(bq_co, sheet_co, bq_channels, bq_platforms),
+        'co': build_country(bq_co, sheet_co, bq_ch_co, bq_pl_co, 'co'),
+        'mx': build_country(bq_mx, sheet_mx, bq_ch_mx, bq_pl_mx, 'mx'),
     }
 
     with open(output, 'w') as f:
         json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
 
-    n = len(data['co']['by_week'])
+    n_co = len(data['co']['by_week'])
+    n_mx = len(data['mx']['by_week'])
     size = len(json.dumps(data))
-    print(f"OK: {output} ({size:,} bytes, {n} weeks CO)")
+    print(f"OK: {output} ({size:,} bytes, {n_co} weeks CO, {n_mx} weeks MX)")
 
 
 if __name__ == '__main__':

@@ -163,7 +163,7 @@
     <div class="control-group">
       <label>País:</label>
       <button type="button" class="pill active" data-country="co">Colombia</button>
-      <button type="button" class="pill" data-country="mx" disabled title="Próximamente">México</button>
+      <button type="button" class="pill" data-country="mx">México</button>
     </div>
     <div class="control-group" id="weekPills">
       <label>Semana:</label>
@@ -214,16 +214,27 @@
     data: null,
   };
 
-  // --- Fuentes (fixed row order + group color key) ---
-  const FUENTES = [
-    { name: 'WEB',              group: 'web' },
-    { name: 'Estudio Inmueble', group: 'ei' },
-    { name: 'lead_forms',       group: 'lf' },
-    { name: 'CRM',              group: 'direct' },
-    { name: 'Broker',           group: 'direct' },
-    { name: 'Comercial',        group: 'direct' },
-  ];
-  // Performance fuentes = paid block (matches sheet's "Perfo" row).
+  // --- Fuentes (fixed row order + group color key) — diff CO/MX: CRM↔Propiedades ---
+  const FUENTES_BY_COUNTRY = {
+    co: [
+      { name: 'WEB',              group: 'web' },
+      { name: 'Estudio Inmueble', group: 'ei' },
+      { name: 'lead_forms',       group: 'lf' },
+      { name: 'CRM',              group: 'direct' },
+      { name: 'Broker',           group: 'direct' },
+      { name: 'Comercial',        group: 'direct' },
+    ],
+    mx: [
+      { name: 'WEB',              group: 'web' },
+      { name: 'Estudio Inmueble', group: 'ei' },
+      { name: 'lead_forms',       group: 'lf' },
+      { name: 'Propiedades',      group: 'direct' },
+      { name: 'Broker',           group: 'direct' },
+      { name: 'Comercial',        group: 'direct' },
+    ],
+  };
+  const fuentesForCountry = () => FUENTES_BY_COUNTRY[STATE.country] || FUENTES_BY_COUNTRY.co;
+  // Performance fuentes = paid block (matches sheet's "Perfo" row). Same in both países.
   const PERF_FUENTES = ['WEB', 'Estudio Inmueble', 'lead_forms'];
 
   // --- Helpers ---
@@ -315,8 +326,8 @@
       return sum / priorWeeks.length;
     }
 
-    // Build 6 fuente rows in fixed order
-    const rows = FUENTES.map(f => ({
+    // Build 6 fuente rows in fixed order (country-specific: CO has CRM, MX has Propiedades)
+    const rows = fuentesForCountry().map(f => ({
       channel: f.name,
       group:   f.group,
       actual:  (a[f.name] && a[f.name].asg)  != null ? a[f.name].asg  : 0,
@@ -795,7 +806,7 @@
     if (f === 'WEB') return 'web';
     if (f === 'Estudio Inmueble') return 'ei';
     if (f === 'lead_forms') return 'lf';
-    if (f === 'CRM' || f === 'Broker' || f === 'Comercial') return 'direct';
+    if (f === 'CRM' || f === 'Propiedades' || f === 'Broker' || f === 'Comercial') return 'direct';
     return 'other';
   }
 
