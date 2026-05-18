@@ -85,6 +85,23 @@
   .chart-svg .hover-rect.active ~ .hover-rect-bg,
   .chart-svg .hover-guide { stroke: var(--muted); stroke-dasharray: 3 3; opacity: 0; }
   .chart-svg .hover-guide.show { opacity: 0.6; }
+  /* select-table for canal/plataforma */
+  .sel-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .sel-table th, .sel-table td { padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+  .sel-table th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .sel-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .sel-table tbody tr { cursor: pointer; }
+  .sel-table tbody tr:hover { background: #0b1224; }
+  .sel-table tbody tr.selected { background: rgba(129, 140, 248, 0.18); }
+  .sel-table tbody tr.selected td:first-child { border-left: 3px solid var(--accent); padding-left: 7px; }
+  .sel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .sel-grid { grid-template-columns: 1fr; } }
+  .ue-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 720px) { .ue-grid { grid-template-columns: 1fr; } }
+  .ue-card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .ue-card .ue-label { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  .ue-card .ue-value { font-size: 24px; font-weight: 700; color: var(--text); margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+  .ue-card .ue-spark { width: 100%; height: 60px; }
 </style>
 </head>
 <body>
@@ -99,6 +116,7 @@
   <div class="card" id="filters"></div>
   <div class="card" id="chart"></div>
   <div class="card" id="gap"></div>
+  <div class="card" id="canal-section"></div>
 </div>
 
 <script>
@@ -110,6 +128,8 @@
     granularity: 'day',
     fuentes: new Set(),    // filled after load (country-specific)
     filters: new Set(),    // filter ids currently checked
+    canal: null,           // single-select or null = total
+    plataforma: null,      // single-select or null = total
   };
 
   function fuentesForPais() {
@@ -211,6 +231,7 @@
   function redraw() {
     renderChart();
     renderGap();
+    renderCanalSection();
   }
 
   function renderControls() {
@@ -738,6 +759,392 @@
     });
   }
 
+  // ===== Canal section (volumen / click-to-lead / unit economics) =====
+  function canalAvailableForPais() {
+    return (DATA && DATA.canales && DATA.canales[state.pais]) || [];
+  }
+  function plataformaAvailableForPais() {
+    return (DATA && DATA.plataformas && DATA.plataformas[state.pais]) || [];
+  }
+
+  function rowMatchesUpstream(r) {
+    // pais + fuentes (multi-select). Used for canal table (no canal/plataforma filter).
+    return r.pais === state.pais && state.fuentes.has(r.f);
+  }
+  function rowMatchesCanal(r) {
+    return rowMatchesUpstream(r) && (state.canal == null || r.c === state.canal);
+  }
+  function rowMatchesPlataforma(r) {
+    return rowMatchesCanal(r) && (state.plataforma == null || r.p === state.plataforma);
+  }
+
+  function aggregateCanalTable() {
+    // Aggregates rows by canal (respects fuentes + pais only)
+    const m = new Map(); // canal → {leads, spend, clicks}
+    for (const r of DATA.leads_attr_rows) {
+      if (!rowMatchesUpstream(r) || !r.c) continue;
+      const x = m.get(r.c) || {leads: 0, spend: 0, clicks: 0};
+      x.leads += r.n;
+      m.set(r.c, x);
+    }
+    for (const r of DATA.spend_rows) {
+      if (!rowMatchesUpstream(r) || !r.c) continue;
+      const x = m.get(r.c) || {leads: 0, spend: 0, clicks: 0};
+      x.spend  += r.s;
+      x.clicks += r.k;
+      m.set(r.c, x);
+    }
+    const arr = [...m.entries()].map(([canal, v]) => ({canal, ...v}));
+    arr.sort((a, b) => b.leads - a.leads || b.spend - a.spend);
+    return arr;
+  }
+
+  function aggregatePlataformaTable() {
+    // Aggregates rows by plataforma (respects fuentes + pais + canal)
+    const m = new Map();
+    for (const r of DATA.leads_attr_rows) {
+      if (!rowMatchesCanal(r) || !r.p) continue;
+      const x = m.get(r.p) || {leads: 0, spend: 0, clicks: 0};
+      x.leads += r.n;
+      m.set(r.p, x);
+    }
+    for (const r of DATA.spend_rows) {
+      if (!rowMatchesCanal(r) || !r.p) continue;
+      const x = m.get(r.p) || {leads: 0, spend: 0, clicks: 0};
+      x.spend  += r.s;
+      x.clicks += r.k;
+      m.set(r.p, x);
+    }
+    const arr = [...m.entries()].map(([plataforma, v]) => ({plataforma, ...v}));
+    arr.sort((a, b) => b.leads - a.leads || b.spend - a.spend);
+    return arr;
+  }
+
+  function aggregateCanalSeries() {
+    // Returns map<bucket, {leads, spend, clicks, impressions}> respecting all 4 filters.
+    const m = new Map();
+    for (const r of DATA.leads_attr_rows) {
+      if (!rowMatchesPlataforma(r)) continue;
+      const b = bucket(r.d);
+      const x = m.get(b) || {leads: 0, spend: 0, clicks: 0, impressions: 0};
+      x.leads += r.n;
+      m.set(b, x);
+    }
+    for (const r of DATA.spend_rows) {
+      if (!rowMatchesPlataforma(r)) continue;
+      const b = bucket(r.d);
+      const x = m.get(b) || {leads: 0, spend: 0, clicks: 0, impressions: 0};
+      x.spend       += r.s;
+      x.clicks      += r.k;
+      x.impressions += r.i;
+      m.set(b, x);
+    }
+    return m;
+  }
+
+  function ensureSelectionStillValid() {
+    // If state.canal not in current canal table, deselect it (and plataforma).
+    const canalSet = new Set(aggregateCanalTable().map(x => x.canal));
+    if (state.canal && !canalSet.has(state.canal)) {
+      state.canal = null;
+      state.plataforma = null;
+      return;
+    }
+    const platSet = new Set(aggregatePlataformaTable().map(x => x.plataforma));
+    if (state.plataforma && !platSet.has(state.plataforma)) {
+      state.plataforma = null;
+    }
+  }
+
+  function fmtMoney(v) {
+    if (!isFinite(v) || v == null) return '–';
+    if (v >= 1e6) return (v/1e6).toFixed(1) + 'M';
+    if (v >= 1e3) return (v/1e3).toFixed(1) + 'k';
+    return v.toFixed(0);
+  }
+  function fmtPct(p) {
+    if (!isFinite(p) || p == null) return '–';
+    return p.toFixed(2) + '%';
+  }
+
+  function lastNCanalBuckets(n) {
+    const m = aggregateCanalSeries();
+    const keys = [...m.keys()].filter(b => !currentBucketIsPartial(b)).sort();
+    return keys.slice(-n).map(b => ({b, ...m.get(b)}));
+  }
+
+  function renderSparkline(data, key, color, opts = {}) {
+    if (!data.length) return '';
+    const W = 240, H = 60, padT = 6, padB = 8;
+    const innerH = H - padT - padB;
+    const vals = data.map(d => d[key] || 0);
+    const maxV = Math.max(1, ...vals);
+    const x = i => data.length === 1 ? W/2 : (i * W) / (data.length - 1);
+    const y = v => padT + innerH - (v / maxV) * innerH;
+    const pts = data.map((d, i) => x(i) + ',' + y(d[key] || 0)).join(' ');
+    const last = vals[vals.length - 1] || 0;
+    return `<svg class="ue-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>
+      <circle cx="${x(data.length-1)}" cy="${y(last)}" r="3" fill="${color}"/>
+    </svg>`;
+  }
+
+  function renderCanalSection() {
+    const el = document.getElementById('canal-section');
+    ensureSelectionStillValid();
+
+    const canales = aggregateCanalTable();
+    const plataformas = aggregatePlataformaTable();
+
+    const canalRowsHtml = canales.length ? canales.map(r => `
+      <tr data-canal="${r.canal}" class="${state.canal === r.canal ? 'selected' : ''}">
+        <td>${r.canal}</td>
+        <td class="num">${fmtN(r.leads)}</td>
+        <td class="num">${fmtMoney(r.spend)}</td>
+        <td class="num">${fmtN(Math.round(r.clicks))}</td>
+      </tr>
+    `).join('') : `<tr><td colspan="4" class="muted">Sin datos para las fuentes seleccionadas</td></tr>`;
+
+    const platRowsHtml = plataformas.length ? plataformas.map(r => `
+      <tr data-plat="${r.plataforma}" class="${state.plataforma === r.plataforma ? 'selected' : ''}">
+        <td>${r.plataforma}</td>
+        <td class="num">${fmtN(r.leads)}</td>
+        <td class="num">${fmtMoney(r.spend)}</td>
+        <td class="num">${fmtN(Math.round(r.clicks))}</td>
+      </tr>
+    `).join('') : `<tr><td colspan="4" class="muted">Sin datos para los filtros actuales</td></tr>`;
+
+    // Aggregated metrics over the visible window
+    const series = lastNCanalBuckets(18);
+    const totals = series.reduce((a, d) => ({
+      leads: a.leads + d.leads,
+      spend: a.spend + d.spend,
+      clicks: a.clicks + d.clicks,
+      impressions: a.impressions + d.impressions,
+    }), {leads: 0, spend: 0, clicks: 0, impressions: 0});
+
+    const cpc = totals.clicks > 0 ? totals.spend / totals.clicks : null;
+    const cpl = totals.leads  > 0 ? totals.spend / totals.leads  : null;
+    const ctr = totals.impressions > 0 ? totals.clicks / totals.impressions * 100 : null;
+
+    const activos = [
+      `País ${state.pais}`,
+      `Fuentes ${state.fuentes.size === fuentesForPais().length ? 'todas' : (state.fuentes.size ? [...state.fuentes].join('+') : 'ninguna')}`,
+      state.canal      ? `Canal ${state.canal}`           : 'Canal cualquiera',
+      state.plataforma ? `Plataforma ${state.plataforma}` : 'Plataforma cualquiera',
+    ].join(' · ');
+
+    el.innerHTML = `
+      <h2>Detalle por canal de inversión</h2>
+      <p class="muted" style="margin:0 0 8px;font-size:12px;">
+        <strong>Click-to-Lead</strong> aplica solo sobre leads con UTM populated (los Direct / sin tracking no entran).
+        Se respetan los filtros de arriba (País, Fuentes) más las selecciones de Canal y Plataforma de abajo.
+      </p>
+      <p class="muted" style="margin:0 0 12px;font-size:12px;">
+        <em>Filtros activos:</em> ${activos}
+      </p>
+
+      <div class="sel-grid">
+        <div>
+          <h3 style="margin-top:0">Canal · click para single-select / re-click deselecciona</h3>
+          <table class="sel-table" id="canal-sel">
+            <thead><tr><th>Canal</th><th class="num">Leads (UTM)</th><th class="num">Spend</th><th class="num">Clicks</th></tr></thead>
+            <tbody>${canalRowsHtml}</tbody>
+          </table>
+        </div>
+        <div>
+          <h3 style="margin-top:0">Plataforma · single-select / re-click deselecciona</h3>
+          <table class="sel-table" id="plat-sel">
+            <thead><tr><th>Plataforma</th><th class="num">Leads (UTM)</th><th class="num">Spend</th><th class="num">Clicks</th></tr></thead>
+            <tbody>${platRowsHtml}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3 style="margin:18px 0 6px;">Volumen · spend / clicks / impressions por período</h3>
+      <div id="canal-vol-chart"></div>
+
+      <h3 style="margin:18px 0 6px;">Click-to-Lead · clicks vs leads atribuidos + ratio %</h3>
+      <div id="canal-ctl-chart"></div>
+
+      <h3 style="margin:18px 0 6px;">Unit economics · últimos 18 ${state.granularity === 'day' ? 'días' : state.granularity === 'week' ? 'semanas' : 'meses'}</h3>
+      <div class="ue-grid">
+        <div class="ue-card">
+          <div class="ue-label">CPC · Spend / Clicks</div>
+          <div class="ue-value">${cpc != null ? '$' + fmtMoney(cpc) : '–'}</div>
+          ${renderSparkline(series.map(d => ({v: d.clicks > 0 ? d.spend / d.clicks : 0})), 'v', '#fbbf24')}
+        </div>
+        <div class="ue-card">
+          <div class="ue-label">CPL · Spend / Leads (registros)</div>
+          <div class="ue-value">${cpl != null ? '$' + fmtMoney(cpl) : '–'}</div>
+          ${renderSparkline(series.map(d => ({v: d.leads > 0 ? d.spend / d.leads : 0})), 'v', '#34d399')}
+        </div>
+        <div class="ue-card">
+          <div class="ue-label">CTR · Clicks / Impressions</div>
+          <div class="ue-value">${fmtPct(ctr)}</div>
+          ${renderSparkline(series.map(d => ({v: d.impressions > 0 ? d.clicks / d.impressions * 100 : 0})), 'v', '#22d3ee')}
+        </div>
+      </div>
+    `;
+
+    // Volumen chart
+    renderVolChart(document.getElementById('canal-vol-chart'), series);
+    // Click-to-Lead chart
+    renderCtlChart(document.getElementById('canal-ctl-chart'), series);
+
+    // Wire row clicks
+    el.querySelectorAll('#canal-sel tbody tr').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const c = tr.dataset.canal;
+        if (!c) return;
+        state.canal = (state.canal === c) ? null : c;
+        state.plataforma = null;  // resetting canal also clears platform
+        renderCanalSection();
+      });
+    });
+    el.querySelectorAll('#plat-sel tbody tr').forEach(tr => {
+      tr.addEventListener('click', () => {
+        const p = tr.dataset.plat;
+        if (!p) return;
+        state.plataforma = (state.plataforma === p) ? null : p;
+        renderCanalSection();
+      });
+    });
+  }
+
+  function renderVolChart(host, series) {
+    if (!series.length || series.every(d => !d.spend && !d.clicks && !d.impressions)) {
+      host.innerHTML = '<div class="muted">Sin datos para los filtros seleccionados.</div>';
+      return;
+    }
+    const W = 1180, H = 320, padL = 60, padR = 60, padT = 16, padB = 40;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const xc = i => padL + (series.length === 1 ? innerW/2 : (i + 0.5) * innerW / series.length);
+    const maxLeft = Math.max(1, ...series.map(d => Math.max(d.spend, d.clicks)));
+    const maxRight = Math.max(1, ...series.map(d => d.impressions));
+    const yL = v => padT + innerH - (v / maxLeft) * innerH;
+    const yR = v => padT + innerH - (v / maxRight) * innerH;
+    const groupW = innerW / series.length;
+    const barW = Math.max(3, groupW * 0.30);
+    const offset = (barW + groupW * 0.05) / 2;
+
+    const bars = series.map((d, i) => {
+      const cx = xc(i);
+      const x1 = cx - offset - barW/2, x2 = cx + offset - barW/2;
+      const ys = yL(d.spend), yk = yL(d.clicks);
+      return `
+        <rect x="${x1}" y="${ys}" width="${barW}" height="${padT+innerH-ys}" fill="#fbbf24" opacity="0.9"><title>${d.b} · Spend: ${fmtMoney(d.spend)}</title></rect>
+        <rect x="${x2}" y="${yk}" width="${barW}" height="${padT+innerH-yk}" fill="#22d3ee" opacity="0.9"><title>${d.b} · Clicks: ${fmtN(Math.round(d.clicks))}</title></rect>
+      `;
+    }).join('');
+    const impPath = series.map((d, i) => (i ? 'L' : 'M') + xc(i) + ',' + yR(d.impressions)).join(' ');
+    const impDots = series.map((d, i) => `<circle cx="${xc(i)}" cy="${yR(d.impressions)}" r="3" fill="#a78bfa"><title>${d.b} · Impressions: ${fmtMoney(d.impressions)}</title></circle>`).join('');
+
+    const yTicks = 4;
+    const yEls = [];
+    for (let i = 0; i <= yTicks; i++) {
+      const v = (maxLeft * i) / yTicks;
+      const yy = yL(v);
+      yEls.push(`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="#1f2a44"/>`);
+      yEls.push(`<text x="${padL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#94a3b8">${fmtMoney(v)}</text>`);
+    }
+    const yREls = [];
+    for (let i = 0; i <= yTicks; i++) {
+      const v = (maxRight * i) / yTicks;
+      const yy = yR(v);
+      yREls.push(`<text x="${W-padR+8}" y="${yy+4}" text-anchor="start" font-size="11" fill="#94a3b8">${fmtMoney(v)}</text>`);
+    }
+    const xTickEvery = series.length > 12 ? 3 : 2;
+    const xEls = series.map((d, i) => (i % xTickEvery !== 0 && i !== series.length - 1) ? '' :
+      `<text x="${xc(i)}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="#94a3b8">${bucketLabel(d.b)}</text>`).join('');
+
+    host.innerHTML = `
+      <div class="chart-legend">
+        <span style="display:inline-block;width:12px;height:10px;background:#fbbf24;vertical-align:middle;margin-right:5px;border-radius:2px;"></span><strong>Spend (izq)</strong>
+        &nbsp;|&nbsp;
+        <span style="display:inline-block;width:12px;height:10px;background:#22d3ee;vertical-align:middle;margin-right:5px;border-radius:2px;"></span><strong>Clicks (izq)</strong>
+        &nbsp;|&nbsp;
+        <span style="display:inline-block;width:14px;height:3px;background:#a78bfa;vertical-align:middle;margin-right:5px;"></span><strong>Impressions (der)</strong>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px;">
+        ${yEls.join('')}
+        ${bars}
+        <path d="${impPath}" stroke="#a78bfa" stroke-width="2" fill="none"/>
+        ${impDots}
+        ${yREls.join('')}
+        ${xEls}
+      </svg>
+    `;
+  }
+
+  function renderCtlChart(host, series) {
+    if (!series.length || series.every(d => !d.clicks && !d.leads)) {
+      host.innerHTML = '<div class="muted">Sin datos para los filtros seleccionados.</div>';
+      return;
+    }
+    const W = 1180, H = 320, padL = 60, padR = 60, padT = 16, padB = 40;
+    const innerW = W - padL - padR, innerH = H - padT - padB;
+    const xc = i => padL + (series.length === 1 ? innerW/2 : (i + 0.5) * innerW / series.length);
+    const maxLeft = Math.max(1, ...series.map(d => Math.max(d.clicks, d.leads)));
+    const ratioSeries = series.map(d => d.clicks > 0 ? d.leads / d.clicks * 100 : 0);
+    const maxRight = Math.max(1, ...ratioSeries);
+    const yL = v => padT + innerH - (v / maxLeft) * innerH;
+    const yR = v => padT + innerH - (v / maxRight) * innerH;
+    const groupW = innerW / series.length;
+    const barW = Math.max(3, groupW * 0.30);
+    const offset = (barW + groupW * 0.05) / 2;
+
+    const bars = series.map((d, i) => {
+      const cx = xc(i);
+      const x1 = cx - offset - barW/2, x2 = cx + offset - barW/2;
+      const yk = yL(d.clicks), yl = yL(d.leads);
+      const ratio = d.clicks > 0 ? (d.leads / d.clicks * 100).toFixed(2) : '–';
+      return `
+        <rect x="${x1}" y="${yk}" width="${barW}" height="${padT+innerH-yk}" fill="#22d3ee" opacity="0.9"><title>${d.b} · Clicks: ${fmtN(Math.round(d.clicks))}</title></rect>
+        <rect x="${x2}" y="${yl}" width="${barW}" height="${padT+innerH-yl}" fill="#34d399" opacity="0.9"><title>${d.b} · Leads: ${fmtN(d.leads)} · Ratio ${ratio}%</title></rect>
+      `;
+    }).join('');
+
+    const ratioPath = series.map((d, i) => (i ? 'L' : 'M') + xc(i) + ',' + yR(ratioSeries[i])).join(' ');
+    const ratioDots = series.map((d, i) => `<circle cx="${xc(i)}" cy="${yR(ratioSeries[i])}" r="3" fill="#fb923c"><title>${d.b} · Click-to-Lead ${ratioSeries[i].toFixed(2)}%</title></circle>`).join('');
+
+    const yTicks = 4;
+    const yEls = [];
+    for (let i = 0; i <= yTicks; i++) {
+      const v = (maxLeft * i) / yTicks;
+      const yy = yL(v);
+      yEls.push(`<line x1="${padL}" y1="${yy}" x2="${W-padR}" y2="${yy}" stroke="#1f2a44"/>`);
+      yEls.push(`<text x="${padL-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="#94a3b8">${fmtMoney(v)}</text>`);
+    }
+    const yREls = [];
+    for (let i = 0; i <= yTicks; i++) {
+      const v = (maxRight * i) / yTicks;
+      const yy = yR(v);
+      yREls.push(`<text x="${W-padR+8}" y="${yy+4}" text-anchor="start" font-size="11" fill="#94a3b8">${v.toFixed(1)}%</text>`);
+    }
+    const xTickEvery = series.length > 12 ? 3 : 2;
+    const xEls = series.map((d, i) => (i % xTickEvery !== 0 && i !== series.length - 1) ? '' :
+      `<text x="${xc(i)}" y="${H-padB+18}" text-anchor="middle" font-size="11" fill="#94a3b8">${bucketLabel(d.b)}</text>`).join('');
+
+    host.innerHTML = `
+      <div class="chart-legend">
+        <span style="display:inline-block;width:12px;height:10px;background:#22d3ee;vertical-align:middle;margin-right:5px;border-radius:2px;"></span><strong>Clicks</strong>
+        &nbsp;|&nbsp;
+        <span style="display:inline-block;width:12px;height:10px;background:#34d399;vertical-align:middle;margin-right:5px;border-radius:2px;"></span><strong>Leads atribuidos</strong>
+        &nbsp;|&nbsp;
+        <span style="display:inline-block;width:14px;height:3px;background:#fb923c;vertical-align:middle;margin-right:5px;"></span><strong>Click-to-Lead %</strong>
+      </div>
+      <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H}px;">
+        ${yEls.join('')}
+        ${bars}
+        <path d="${ratioPath}" stroke="#fb923c" stroke-width="2" fill="none"/>
+        ${ratioDots}
+        ${yREls.join('')}
+        ${xEls}
+      </svg>
+    `;
+  }
+
   try {
     await loadData();
     setMeta();
@@ -745,6 +1152,7 @@
     renderFilters();
     renderChart();
     renderGap();
+    renderCanalSection();
   } catch (e) {
     document.getElementById('header-meta').textContent = 'Error: ' + e.message;
     console.error(e);
