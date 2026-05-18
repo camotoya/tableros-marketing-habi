@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
-<title>Asignados por fecha de creación (CO)</title>
+<title>Asignados por fecha de creación · CO + MX</title>
 <style>
   :root {
     --bg: #0f172a;
@@ -91,7 +91,7 @@
 <a class="back-link" href="../">← Volver (Tableros Marketing Sellers)</a>
 <div class="container">
   <header class="page">
-    <h1>Asignados por fecha de creación (CO)</h1>
+    <h1>Asignados por fecha de creación · <span id="header-pais">CO</span></h1>
     <p id="header-meta">Cargando…</p>
   </header>
 
@@ -106,20 +106,34 @@
   const DATA_URL = 'data.json';
   let DATA = null;
   const state = {
+    pais: 'CO',
     granularity: 'day',
-    fuentes: new Set(),    // filled after load
+    fuentes: new Set(),    // filled after load (country-specific)
     filters: new Set(),    // filter ids currently checked
   };
+
+  function fuentesForPais() {
+    return (DATA && DATA.fuentes && DATA.fuentes[state.pais]) || [];
+  }
+
+  function resetFuentesForPais() {
+    state.fuentes.clear();
+    const list = fuentesForPais();
+    if (list.includes('WEB')) state.fuentes.add('WEB');
+    else for (const f of list) state.fuentes.add(f);
+  }
 
   async function loadData() {
     const res = await fetch(DATA_URL, { cache: 'no-store' });
     if (!res.ok) throw new Error('No pude cargar data.json: ' + res.status);
     DATA = await res.json();
-    if (DATA.fuentes.includes('WEB')) state.fuentes.add('WEB');
-    else for (const f of DATA.fuentes) state.fuentes.add(f);
+    resetFuentesForPais();
     // filters default: F7-F10 checked
     if (DATA.filters.some(f => f.id === 'F7-F10')) state.filters.add('F7-F10');
   }
+
+  function localeForPais() { return state.pais === 'MX' ? 'es-MX' : 'es-CO'; }
+  function fmtN(n) { return n.toLocaleString(localeForPais()); }
 
   function filtersBitmask() {
     let m = 0;
@@ -131,8 +145,9 @@
 
   function setMeta() {
     const dt = new Date(DATA.updated_at);
+    document.getElementById('header-pais').textContent = state.pais;
     document.getElementById('header-meta').textContent =
-      `Asignados del WBR mart bucketeados por fecha de creación del lead · Actualizado ${dt.toLocaleString('es-CO')}`;
+      `Asignados del WBR mart bucketeados por fecha de creación del lead · Actualizado ${dt.toLocaleString(localeForPais())}`;
   }
 
   function isoMonday(dateStr) {
@@ -166,11 +181,13 @@
     const req = filtersBitmask();
 
     for (const r of DATA.mart_rows) {
+      if (r.pais !== state.pais) continue;
       if (!state.fuentes.has(r.f)) continue;
       const b = bucket(r.d);
       mart.set(b, (mart.get(b) || 0) + r.n);
     }
     for (const r of DATA.ever_rows) {
+      if (r.pais !== state.pais) continue;
       if (!state.fuentes.has(r.f)) continue;
       // AND: el row pasa sii todos los bits requeridos están presentes.
       if ((r.m & req) !== req) continue;
@@ -198,21 +215,30 @@
 
   function renderControls() {
     const el = document.getElementById('controls');
-    const fuenteRows = DATA.fuentes.map(f => `
+    const list = fuentesForPais();
+    const fuenteRows = list.map(f => `
       <label class="fuente-row">
         <input type="checkbox" data-fuente="${f}" ${state.fuentes.has(f) ? 'checked' : ''}/>
         ${f}
       </label>
     `).join('');
+    const paisChips = (DATA.paises || ['CO']).map(p => `
+      <button class="chip ${state.pais === p ? 'active' : ''}" data-pais="${p}">${p}</button>
+    `).join('');
+    const granChips = `
+      <button class="chip ${state.granularity === 'day' ? 'active' : ''}" data-g="day">Día</button>
+      <button class="chip ${state.granularity === 'week' ? 'active' : ''}" data-g="week">Semana</button>
+      <button class="chip ${state.granularity === 'month' ? 'active' : ''}" data-g="month">Mes</button>
+    `;
     el.innerHTML = `
       <div class="row">
         <div>
+          <h3 style="margin-top:0">País</h3>
+          <div class="chip-group" id="pais">${paisChips}</div>
+        </div>
+        <div>
           <h3 style="margin-top:0">Granularidad</h3>
-          <div class="chip-group" id="granularity">
-            <button class="chip active" data-g="day">Día</button>
-            <button class="chip" data-g="week">Semana</button>
-            <button class="chip" data-g="month">Mes</button>
-          </div>
+          <div class="chip-group" id="granularity">${granChips}</div>
         </div>
         <div style="flex:1; min-width:280px;">
           <h3 style="margin-top:0">Fuentes
@@ -223,6 +249,16 @@
         </div>
       </div>
     `;
+    el.querySelectorAll('[data-pais]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (btn.dataset.pais === state.pais) return;
+        state.pais = btn.dataset.pais;
+        resetFuentesForPais();
+        setMeta();
+        renderControls();
+        redraw();
+      });
+    });
     el.querySelectorAll('[data-g]').forEach(btn => {
       btn.addEventListener('click', () => {
         state.granularity = btn.dataset.g;
@@ -239,7 +275,7 @@
     });
     el.querySelector('[data-action="all"]').addEventListener('click', () => {
       state.fuentes.clear();
-      for (const f of DATA.fuentes) state.fuentes.add(f);
+      for (const f of fuentesForPais()) state.fuentes.add(f);
       el.querySelectorAll('input[data-fuente]').forEach(cb => cb.checked = true);
       redraw();
     });
@@ -309,6 +345,7 @@
     const byBucket = new Map();
     const filterTotals = new Map();
     for (const r of DATA.gap_rows) {
+      if (r.pais !== state.pais) continue;
       if (!state.fuentes.has(r.f)) continue;
       const b = bucket(r.d);
       if (!byBucket.has(b)) byBucket.set(b, new Map());
@@ -351,7 +388,7 @@
         <tr>
           <td><span class="swatch" style="background:${color}"></span><strong>${b}</strong></td>
           <td>${describeBand(b)}</td>
-          <td class="num">${n.toLocaleString('es-CO')}</td>
+          <td class="num">${n.toLocaleString(localeForPais())}</td>
           <td class="num">${pct.toFixed(1)}%</td>
           <td class="bar-cell"><div class="bar"><div class="bar-fill" style="width:${barPct}%;background:${color}"></div></div></td>
         </tr>
@@ -417,7 +454,7 @@
       <h2>Descomposición del gap · ¿qué filtro explica las diferencias entre ever-asignado y mart?</h2>
       <p class="muted" style="margin:0 0 12px;font-size:12px;">
         Atribución prioritaria: cada lead del gap (ever-asignado pero no en mart) se asigna al primer filtro que falla, en orden de impacto descendente (F7-F10 → F12 → F15 → F3 → F11 → Otro).
-        Total gap en ventana: <strong>${totalGap.toLocaleString('es-CO')}</strong> leads.
+        Total gap en ventana: <strong>${totalGap.toLocaleString(localeForPais())}</strong> leads.
       </p>
 
       <h3 style="margin:6px 0 8px;">Tabla · contribución total por filtro (ordenada)</h3>
@@ -465,7 +502,7 @@
             <div class="tt-row">
               <span class="tt-swatch" style="background:${GAP_COLORS[bnd]||'#94a3b8'}"></span>
               <span class="tt-label">${bnd}</span>
-              <span class="tt-value">${seg.raw.toLocaleString('es-CO')} (${pct.toFixed(1)}%)</span>
+              <span class="tt-value">${seg.raw.toLocaleString(localeForPais())} (${pct.toFixed(1)}%)</span>
             </div>
           `;
         }).join('');
@@ -474,7 +511,7 @@
           ${lines}
           <div class="tt-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">
             <span class="tt-label">Total gap</span>
-            <span class="tt-value">${total.toLocaleString('es-CO')}</span>
+            <span class="tt-value">${total.toLocaleString(localeForPais())}</span>
           </div>
         `;
         guide.setAttribute('x1', x(i));
@@ -554,10 +591,10 @@
       const hTig  = padT + innerH - yTig;
       return `
         <rect x="${x1}" y="${yMart}" width="${barW}" height="${hMart}" fill="var(--accent)" opacity="0.9">
-          <title>${d.b} · Mart oficial: ${d.n_mart.toLocaleString('es-CO')}</title>
+          <title>${d.b} · Mart oficial: ${d.n_mart.toLocaleString(localeForPais())}</title>
         </rect>
         <rect x="${x2}" y="${yTig}" width="${barW}" height="${hTig}" fill="#34d399" opacity="0.9">
-          <title>${d.b} · Filtrado: ${d.n_filt.toLocaleString('es-CO')}</title>
+          <title>${d.b} · Filtrado: ${d.n_filt.toLocaleString(localeForPais())}</title>
         </rect>
       `;
     }).join('');
@@ -565,7 +602,7 @@
     const ratioPath = ratioSeries.map((v, i) => (i ? 'L' : 'M') + xc(i) + ',' + yR(v)).join(' ');
     const ratioDots = data.map((d, i) => {
       const v = ratioSeries[i];
-      return `<circle cx="${xc(i)}" cy="${yR(v)}" r="3.5" fill="#fbbf24"><title>${d.b}: ${(v*100).toFixed(1)}% (${d.n_mart.toLocaleString('es-CO')}/${d.n_filt.toLocaleString('es-CO')})</title></circle>`;
+      return `<circle cx="${xc(i)}" cy="${yR(v)}" r="3.5" fill="#fbbf24"><title>${d.b}: ${(v*100).toFixed(1)}% (${d.n_mart.toLocaleString(localeForPais())}/${d.n_filt.toLocaleString(localeForPais())})</title></circle>`;
     }).join('');
 
     // Y left ticks (counts)
@@ -575,7 +612,7 @@
       const v = Math.round((maxY * i) / yTicks);
       const yy = y(v);
       yEls.push(`<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="#1f2a44"/>`);
-      yEls.push(`<text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${v.toLocaleString('es-CO')}</text>`);
+      yEls.push(`<text x="${padL - 8}" y="${yy + 4}" text-anchor="end" font-size="11" fill="#94a3b8">${v.toLocaleString(localeForPais())}</text>`);
     }
     // Y right ticks (%)
     const yRTicks = 5;
@@ -612,15 +649,15 @@
       <h2>Asignados · últimos 18 ${state.granularity === 'day' ? 'días' : state.granularity === 'week' ? 'semanas' : 'meses'}</h2>
       <div class="chart-legend">
         <span style="display:inline-block;width:12px;height:10px;background:var(--accent);vertical-align:middle;margin-right:5px;border-radius:2px;"></span>
-        <strong>Mart oficial</strong> · último ${lastMart.toLocaleString('es-CO')} · total ${totMart.toLocaleString('es-CO')}
+        <strong>Mart oficial</strong> · último ${lastMart.toLocaleString(localeForPais())} · total ${totMart.toLocaleString(localeForPais())}
         &nbsp;|&nbsp;
         <span style="display:inline-block;width:12px;height:10px;background:#34d399;vertical-align:middle;margin-right:5px;border-radius:2px;"></span>
-        <strong>Ever-asignado${state.filters.size ? ` + ${state.filters.size} filtro${state.filters.size > 1 ? 's' : ''}` : ''}</strong> · último ${lastFilt.toLocaleString('es-CO')} · total ${totFilt.toLocaleString('es-CO')}
+        <strong>Ever-asignado${state.filters.size ? ` + ${state.filters.size} filtro${state.filters.size > 1 ? 's' : ''}` : ''}</strong> · último ${lastFilt.toLocaleString(localeForPais())} · total ${totFilt.toLocaleString(localeForPais())}
         &nbsp;|&nbsp;
         <span style="display:inline-block;width:14px;height:3px;background:#fbbf24;vertical-align:middle;margin-right:5px;"></span>
         <strong>% Mart/Filtrado</strong> · último ${(lastRatio*100).toFixed(1)}% · total ${ratioTotal}%
         &nbsp;|&nbsp;
-        Fuentes (${fuentesActivas.length}/${DATA.fuentes.length}): ${fuentesActivas.length === DATA.fuentes.length ? 'Todas' : fuentesActivas.join(', ') || 'Ninguna'}
+        Fuentes (${fuentesActivas.length}/${fuentesForPais().length}): ${fuentesActivas.length === fuentesForPais().length ? 'Todas' : fuentesActivas.join(', ') || 'Ninguna'}
       </div>
       <div class="chart-host">
         <svg class="chart-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
@@ -661,12 +698,12 @@
           <div class="tt-row">
             <span class="tt-swatch" style="background:var(--accent)"></span>
             <span class="tt-label">Mart oficial</span>
-            <span class="tt-value">${d.n_mart.toLocaleString('es-CO')}</span>
+            <span class="tt-value">${d.n_mart.toLocaleString(localeForPais())}</span>
           </div>
           <div class="tt-row">
             <span class="tt-swatch" style="background:#34d399"></span>
             <span class="tt-label">${filtLabel}</span>
-            <span class="tt-value">${d.n_filt.toLocaleString('es-CO')}</span>
+            <span class="tt-value">${d.n_filt.toLocaleString(localeForPais())}</span>
           </div>
           <div class="tt-row">
             <span class="tt-swatch line" style="background:#fbbf24"></span>
@@ -675,7 +712,7 @@
           </div>
           <div class="tt-row" style="margin-top:4px;border-top:1px solid var(--border);padding-top:4px;">
             <span class="tt-label">Gap (Filtrado − Mart)</span>
-            <span class="tt-value">${(d.n_filt - d.n_mart).toLocaleString('es-CO')}</span>
+            <span class="tt-value">${(d.n_filt - d.n_mart).toLocaleString(localeForPais())}</span>
           </div>
         `;
         guide.setAttribute('x1', xc(i));
