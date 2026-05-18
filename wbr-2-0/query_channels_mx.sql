@@ -87,7 +87,9 @@ WITH
         WHEN m.mkt_channel_medium IN ('lead_forms Paid', 'lead_forms Direct') OR m.mkt_channel_medium LIKE 'Lead Forms%' THEN 'lead_forms'
         WHEN m.mkt_channel_medium LIKE 'Propiedades%' THEN 'Propiedades'
       END AS fuente,
-      ROUND(SUM(i.spend), 0) AS spend
+      ROUND(SUM(i.spend), 0)       AS spend,
+      ROUND(SUM(i.clicks), 0)      AS clicks,
+      ROUND(SUM(i.impressions), 0) AS impressions
     FROM `papyrus-data-mx.habi_wh_bi.resumen_inversiones_mkt_mx` i
     LEFT JOIN utm_dedup_camp m ON i.campana = m.mkt_campaign_name
     WHERE i.date >= DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 140 DAY), ISOWEEK)
@@ -107,10 +109,12 @@ SELECT
   CAST(wc.week AS STRING) AS week_start,
   wc.channel,
   wc.fuente,
-  COALESCE(r.n, 0)        AS reg,
-  COALESCE(c.n, 0)        AS cal,
-  COALESCE(a.n, 0)        AS asg,
-  COALESCE(s.spend, NULL) AS spend
+  COALESCE(r.n, 0)              AS reg,
+  COALESCE(c.n, 0)              AS cal,
+  COALESCE(a.n, 0)              AS asg,
+  COALESCE(s.spend, NULL)       AS spend,
+  COALESCE(s.clicks, NULL)      AS clicks,
+  COALESCE(s.impressions, NULL) AS impressions
 FROM weeks_channels wc
 LEFT JOIN reg_agg   r USING (week, channel, fuente)
 LEFT JOIN cal_agg   c USING (week, channel, fuente)

@@ -135,6 +135,10 @@
   .chart-card svg { width: 100%; height: 53px; display: block; margin-top: 6px; }
   .chart-tooltip { position: fixed; pointer-events: none; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 5px 9px; font-size: 11px; color: var(--text-title); z-index: 100; opacity: 0; transition: opacity 0.1s; box-shadow: 0 4px 12px rgba(0,0,0,0.15); white-space: nowrap; }
   .chart-tooltip.visible { opacity: 1; }
+  .section-divider { max-width: 1200px; margin: 36px auto 6px; padding-top: 18px; border-top: 1px solid var(--border); }
+  .section-title { margin: 0; font-size: 16px; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+  .section-sub   { margin: 4px 0 0; font-size: 12px; color: var(--text-muted-2); }
+  .section-sub strong { color: var(--text-muted); }
   .charts-filter-info { max-width: 1200px; margin: 14px auto 0; font-size: 12px; color: var(--text-muted-2); }
   .charts-filter-info .pill-clear { margin-left: 10px; padding: 2px 10px; border-radius: 12px; border: 1px solid var(--border); background: transparent; cursor: pointer; color: var(--text-muted); font-size: 11px; }
   .charts-filter-info .pill-clear:hover { color: var(--accent); border-color: var(--accent); }
@@ -189,6 +193,14 @@
 
   <div class="charts-filter-info" id="chartsFilterPl"></div>
   <div class="charts-row" id="chartsRowPl"></div>
+
+  <div class="section-divider">
+    <h2 class="section-title">Inversión — detalle paid · clicks · impressions</h2>
+    <p class="section-sub muted">Solo canales con UTM mapeado en el dict (Direct/SAC/Community quedan en –). Filtrado por <strong>fuente</strong> y <strong>canal</strong> (no usa plataforma).</p>
+  </div>
+  <div class="charts-filter-info" id="chartsFilterChPaid"></div>
+  <div class="charts-row" id="chartsRowChPaid"></div>
+  <div class="charts-row" id="chartsRowChPaid2"></div>
 
   <footer>habi · marketing analytics · WBR 2.0</footer>
 
@@ -966,6 +978,7 @@
     });
 
     renderChannelCharts();
+    renderChannelPaidCharts();
   }
 
   // --- Channel chart row (drilldown) ---
@@ -1003,6 +1016,53 @@
     { title: 'Registros',      color: '#60a5fa', kind: 'int',   chartType: 'bar',  series: c => trendSeriesChannel('reg', c) },
     { title: 'Inversión',      color: '#fbbf24', kind: 'money', chartType: 'line', series: c => trendSeriesChannel('spend', c) },
     { title: 'CPL',            color: '#fb923c', kind: 'cpl',   chartType: 'line', series: c => ratioSeriesChannel('spend', 'reg', c) },
+  ];
+
+  // Charts paid (fila 4): clicks/impressions/derivadas leyendo de by_week_platforms.
+  // Respeta los 3 filtros activos: fuente (tabla 1) + canal (tabla 2) + plataforma (tabla 3).
+  function trendSeriesPaid(metric) {
+    const byWeekPlatforms = (STATE.data[STATE.country] || {}).by_week_platforms || {};
+    const weeks = chartWeeks();
+    const fF = STATE.fuenteFilter, cF = STATE.channelFilter, pF = STATE.platformFilter;
+    return weeks.map(w => {
+      const rows = byWeekPlatforms[w] || [];
+      let sum = 0, hasAny = false;
+      for (const r of rows) {
+        if (fF && r.fuente   !== fF) continue;
+        if (cF && r.channel  !== cF) continue;
+        if (pF && r.platform !== pF) continue;
+        if (r[metric] != null) { sum += r[metric]; hasAny = true; }
+      }
+      return hasAny ? sum : null;
+    });
+  }
+  function ratioSeriesPaid(numKey, denKey) {
+    const ns = trendSeriesPaid(numKey);
+    const ds = trendSeriesPaid(denKey);
+    return ns.map((n, i) => {
+      const d = ds[i];
+      return (n != null && d != null && d > 0) ? n / d : null;
+    });
+  }
+
+  function cpmSeries() {
+    const sp = trendSeriesPaid('spend');
+    const im = trendSeriesPaid('impressions');
+    return sp.map((s, i) => {
+      const d = im[i];
+      return (s != null && d != null && d > 0) ? s / d * 1000 : null;
+    });
+  }
+
+  // Order: Impressions → CPM → Clicks → CPC → CTR  (fila 4 superior · 5 cards)
+  //        Click → Reg                              (fila 5 inferior · 1 card sola)
+  const CHARTS_CHANNEL_PAID = [
+    { title: 'Impressions',     color: '#0ea5e9', kind: 'int',   chartType: 'bar',  series: () => trendSeriesPaid('impressions') },
+    { title: 'CPM',             color: '#a78bfa', kind: 'cpl',   chartType: 'line', series: cpmSeries },
+    { title: 'Clicks',          color: '#22d3ee', kind: 'int',   chartType: 'bar',  series: () => trendSeriesPaid('clicks') },
+    { title: 'CPC',             color: '#f59e0b', kind: 'cpl',   chartType: 'line', series: () => ratioSeriesPaid('spend', 'clicks') },
+    { title: 'CTR',             color: '#34d399', kind: 'pct',   chartType: 'line', series: () => ratioSeriesPaid('clicks', 'impressions') },
+    { title: 'Click → Reg',     color: '#f472b6', kind: 'pct',   chartType: 'line', series: () => ratioSeriesPaid('reg', 'clicks') },
   ];
 
   function renderChannelCharts() {
@@ -1058,6 +1118,61 @@
         ${chartSvg}
       </div>`;
     }).join('');
+  }
+
+  // --- Paid charts (fila 4): clicks/impressions/CTR/CPC/Click→Reg, fuente+canal+plataforma ---
+  function renderChannelPaidCharts() {
+    const fF = STATE.fuenteFilter, cF = STATE.channelFilter, pF = STATE.platformFilter;
+    const info = document.getElementById('chartsFilterChPaid');
+    const parts = [];
+    if (fF) parts.push(`fuente <strong>${escapeHtml(fF)}</strong>`);
+    if (cF) parts.push(`canal <strong>${escapeHtml(cF)}</strong>`);
+    if (pF) parts.push(`plataforma <strong>${escapeHtml(pF)}</strong>`);
+    info.innerHTML = parts.length
+      ? `Detalle paid filtrado por ${parts.join(' · ')}`
+      : `Detalle paid · TOTAL de canales con UTM mapeado (filtrá fuente / canal / plataforma arriba)`;
+
+    const weeks = chartWeeks();
+    function cardHtml(c) {
+      const series = c.series();
+      const lastIdx = series.map((v, i) => v != null ? i : -1).filter(i => i >= 0).pop();
+      const lastVal = lastIdx == null ? null : series[lastIdx];
+      const lastValStr = fmtCardValue(lastVal, c.kind);
+      const priorValues = series.slice(-CHART_WEEKS, -1).filter(v => v != null);
+      let sub = '';
+      if (lastVal != null && priorValues.length > 0) {
+        const avg = priorValues.reduce((s, v) => s + v, 0) / priorValues.length;
+        if (avg > 0 || (avg === 0 && lastVal > 0)) {
+          if (c.kind === 'pct') {
+            const diffPp = (lastVal - avg) * 100;
+            const sign = diffPp > 0 ? '+' : '';
+            const relStr = avg > 0 ? ` (${(lastVal - avg) / avg > 0 ? '+' : ''}${((lastVal - avg) / avg * 100).toFixed(1)}%)` : '';
+            sub = `${sign}${diffPp.toFixed(1)} pp${relStr} vs prom 7s`;
+          } else {
+            const ch = avg > 0 ? (lastVal - avg) / avg : null;
+            if (ch != null) {
+              const sign = ch > 0 ? '+' : '';
+              sub = `${sign}${(ch * 100).toFixed(1)}% vs prom 7s`;
+            }
+          }
+        }
+      }
+      const contextCount = Math.max(0, series.length - CHART_WEEKS);
+      const chartSvg = c.chartType === 'bar'
+        ? sparklineBar(series, weeks, c.color, c.kind, contextCount)
+        : sparklineLine(series, weeks, c.color, c.kind, contextCount);
+      return `<div class="chart-card">
+        <div class="title">${escapeHtml(c.title)}</div>
+        <div class="last-val">${lastValStr}</div>
+        <div class="sub">${escapeHtml(sub)}</div>
+        ${chartSvg}
+      </div>`;
+    }
+
+    const top = CHARTS_CHANNEL_PAID.slice(0, 5).map(cardHtml).join('');
+    const bot = CHARTS_CHANNEL_PAID.slice(5).map(cardHtml).join('');
+    document.getElementById('chartsRowChPaid').innerHTML  = top;
+    document.getElementById('chartsRowChPaid2').innerHTML = bot;
   }
 
   // --- Platforms sub-table (filtered by fuente + channel) ---
@@ -1347,7 +1462,7 @@
   // --- Chart hover tooltip (delegated, both chart rows) ---
   (function wireChartTooltip() {
     const tip = document.getElementById('chartTooltip');
-    const roots = [document.getElementById('chartsRow'), document.getElementById('chartsRowCh'), document.getElementById('chartsRowPl')];
+    const roots = [document.getElementById('chartsRow'), document.getElementById('chartsRowCh'), document.getElementById('chartsRowPl'), document.getElementById('chartsRowChPaid'), document.getElementById('chartsRowChPaid2')];
     roots.forEach(root => {
       root.addEventListener('mouseover', e => {
         const t = e.target.getAttribute && e.target.getAttribute('data-tip');

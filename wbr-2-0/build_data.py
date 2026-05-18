@@ -151,40 +151,50 @@ def build_country(bq_json, sheet_csv, channels_json, platforms_json, country):
         if ch.lower().startswith('comercial'): return 'Comercial'
         return None  # unclassified (long-tail UTM IDs)
 
+    def _int_or_none(v):
+        return int(float(v)) if v is not None else None
+
     channels = json.load(open(channels_json))
     by_week_channels = defaultdict(dict)
     for r in channels:
         w = r['week_start']
         ch = r['channel']
         cell = by_week_channels[w].get(ch)
-        spend_val = int(float(r['spend'])) if r.get('spend') is not None else None
+        spend_val  = _int_or_none(r.get('spend'))
+        clicks_val = _int_or_none(r.get('clicks'))
+        impr_val   = _int_or_none(r.get('impressions'))
         if cell is None:
             by_week_channels[w][ch] = {
-                'reg':    int(r['reg']),
-                'cal':    int(r['cal']),
-                'asg':    int(r['asg']),
-                'spend':  spend_val,
-                'fuente': channel_to_fuente(ch) or r['fuente'],
+                'reg':         int(r['reg']),
+                'cal':         int(r['cal']),
+                'asg':         int(r['asg']),
+                'spend':       spend_val,
+                'clicks':      clicks_val,
+                'impressions': impr_val,
+                'fuente':      channel_to_fuente(ch) or r['fuente'],
             }
         else:
             cell['reg'] += int(r['reg'])
             cell['cal'] += int(r['cal'])
             cell['asg'] += int(r['asg'])
-            if spend_val is not None:
-                cell['spend'] = (cell['spend'] or 0) + spend_val
+            for k, v in (('spend', spend_val), ('clicks', clicks_val), ('impressions', impr_val)):
+                if v is not None:
+                    cell[k] = (cell[k] or 0) + v
 
-    # Platforms: by_week_platforms[w] = list of {platform, channel, fuente, reg, cal, asg, spend}
+    # Platforms: by_week_platforms[w] = list of {platform, channel, fuente, reg, cal, asg, spend, clicks, impressions}
     platforms = json.load(open(platforms_json))
     by_week_platforms = defaultdict(list)
     for r in platforms:
         by_week_platforms[r['week_start']].append({
-            'platform': r['platform'],
-            'channel':  r['channel'],
-            'fuente':   r['fuente'],
-            'reg':    int(r['reg']),
-            'cal':    int(r['cal']),
-            'asg':    int(r['asg']),
-            'spend':  int(float(r['spend'])) if r.get('spend') is not None else None,
+            'platform':    r['platform'],
+            'channel':     r['channel'],
+            'fuente':      r['fuente'],
+            'reg':         int(r['reg']),
+            'cal':         int(r['cal']),
+            'asg':         int(r['asg']),
+            'spend':       _int_or_none(r.get('spend')),
+            'clicks':      _int_or_none(r.get('clicks')),
+            'impressions': _int_or_none(r.get('impressions')),
         })
 
     return {
