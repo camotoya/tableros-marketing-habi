@@ -45,68 +45,96 @@ scripts/desempeno_hoy_to_json.py    ← transforma BQ output → shape final
 
 ## Definición de "calificado"
 
-Para cada `nid` con `fuente_id` en las 6 oficiales del país en `tabla_inmuebles_general`, el **timestamp de calificación** es la primera entrada cronológica del nid a `state_id IN (20, 63)` en:
+Para cada deal con `fuente_id` en las 6 oficiales del país en `tabla_inmuebles_general`, el **timestamp de calificación** es la primera entrada cronológica de ese deal a `estado_id/state_id IN (20, 63)` en:
 - CO: `sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2`
 - MX: `sellers-main-prod.mx_rds_staging.habi_db_history_state`
 
-Ese timestamp (UTC) se convierte a hora local del país (CO `-5`, MX `-6`, MX sin DST desde 2022) y se bucketea a hora 1-24 (hora 1 = `00:00-00:59`, hora 24 = `23:00-23:59`).
+**JOIN key (validado contra BQ 2026-05-19):**
+- CO: `historico.negocio_id` ↔ `tabla_inmuebles_general.negocio_id` (DIRECTO).
+- MX: `history_state.deal_id` ↔ `tabla_inmuebles_general.id_negocio` (DIRECTO, sin tabla intermedia).
+- ⚠️ `nid` NO es la clave: en ambas TIG es identificador a nivel de inmueble (propiedad), no del deal.
+
+**Tipo de las columnas:** todas son `DATETIME` (no `TIMESTAMP`). Usar `DATETIME_SUB` / `DATETIME_ADD` en BQ — `TIMESTAMP_*` lanza type mismatch.
+
+**Columnas reales (validadas 2026-05-19):**
+| País | Tabla histórico | Estado | ID deal | Fecha |
+|---|---|---|---|---|
+| CO | `habi_db_tabla_historico_estado_v2` | `estado_id` | `negocio_id` | `fecha_actualizacion` |
+| MX | `habi_db_history_state` | `state_id` | `deal_id` | `date_create` |
+
+El timestamp de calificación es la única columna de fecha que existe en CO (no hay `fecha_creacion` separada en historico); equivale al momento en que se grabó el cambio de estado. Se convierte a hora local del país (CO `-5`, MX `-6`, sin DST) y se bucketea a hora 1-24 (hora 1 = `00:00-00:59`, hora 24 = `23:00-23:59`).
 
 **Atribución de fuente:** la del lead al momento de su registro original (`tabla_inmuebles_general.fuente_id`), agrupada a 6 etiquetas:
-- CO: WEB(3), Habimetro(7), Leadforms(47/37/41/42), CRM(20), Broker(39), Comercial(35)
+- CO: WEB(3), Habimetro(7), Leadforms(47), CRM(20), Broker(39), Comercial(35)
 - MX: WEB(3), Habimetro(7), Leadforms(47), Propiedades(46), Broker(39), Comercial(35)
+
+⚠️ Los IDs históricos 37/41/42 (Leadforms legacy CO) no aparecen en TIG CO en ventana 60d (mayo 2026); se omiten del filtro. Si reaparecen en el futuro, se reincorporan a la etiqueta Leadforms.
 
 Consistente con el WBR 2.0 y asignados-creacion.
 
 **Filtro MM only:** las tablas `historico_estado_v2` (CO) y `habi_db_history_state` (MX) son log MM por construcción. Inmo vive en tablas `*_real_estate` aparte. Leer solo de las MM ya filtra MM.
 
-## Query SQL (1 archivo, parametrizable)
+## Query SQL (1 archivo, parametrizable por país)
 
-`query.sql` recibe vía `bq query --parameter`:
-- `pais` STRING (`'co'` o `'mx'`)
-- `tz_offset` INT64 (`-5` o `-6`)
-- referencias a tablas concretas vía `sed` en el workflow step
+`query.sql` usa placeholders reemplazados por `sed` en el workflow step (no usa parámetros `@var` de BQ porque también hay que sustituir nombres de tabla y columna, no solo valores):
+
+| Placeholder | CO | MX |
+|---|---|---|
+| `__TIG__` | `papyrus-data.habi_wh_bi.tabla_inmuebles_general` | `papyrus-data-mx.habi_wh_bi.tabla_inmuebles_general` |
+| `__TIG_ID__` | `negocio_id` | `id_negocio` |
+| `__HIST__` | `sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2` | `sellers-main-prod.mx_rds_staging.habi_db_history_state` |
+| `__HIST_ID__` | `negocio_id` | `deal_id` |
+| `__STATE_COL__` | `estado_id` | `state_id` |
+| `__FECHA_COL__` | `fecha_actualizacion` | `date_create` |
+| `__TZ_OFFSET__` | `-5` | `-6` |
 
 Estructura:
 
 ```sql
 WITH lead_fuente AS (
-  SELECT nid, fuente_id,
-         CASE fuente_id
-           WHEN 3 THEN 'WEB' WHEN 7 THEN 'Habimetro'
-           WHEN 20 THEN 'CRM' WHEN 35 THEN 'Comercial'
-           WHEN 39 THEN 'Broker' WHEN 46 THEN 'Propiedades'
-           WHEN 47 THEN 'Leadforms' WHEN 37 THEN 'Leadforms'
-           WHEN 41 THEN 'Leadforms' WHEN 42 THEN 'Leadforms'
-         END AS fuente_label
-  FROM <TIG_PAIS>
-  WHERE fecha_creacion >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 60 DAY)
-    AND nid IS NOT NULL
-    AND fuente_id IN (3,7,20,35,37,39,41,42,46,47)
+  SELECT
+    __TIG_ID__ AS deal_id,
+    CASE fuente_id
+      WHEN 3  THEN 'WEB'
+      WHEN 7  THEN 'Habimetro'
+      WHEN 20 THEN 'CRM'
+      WHEN 35 THEN 'Comercial'
+      WHEN 39 THEN 'Broker'
+      WHEN 46 THEN 'Propiedades'
+      WHEN 47 THEN 'Leadforms'
+    END AS fuente_label
+  FROM `__TIG__`
+  WHERE fecha_creacion >= DATETIME_SUB(CURRENT_DATETIME(), INTERVAL 60 DAY)
+    AND __TIG_ID__ IS NOT NULL
+    AND fuente_id IN (3,7,20,35,39,46,47)
 ),
 primer_calif AS (
-  SELECT <ID_NEGOCIO_O_NID> AS nid,
-         MIN(fecha_creacion) AS ts_calif_utc
-  FROM <HISTORICO_PAIS>
-  WHERE state_id IN (20, 63)
-    AND fecha_creacion >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 40 DAY)
+  SELECT
+    __HIST_ID__ AS deal_id,
+    MIN(__FECHA_COL__) AS ts_calif_utc
+  FROM `__HIST__`
+  WHERE __STATE_COL__ IN (20, 63)
+    AND __FECHA_COL__ >= DATETIME_SUB(CURRENT_DATETIME(), INTERVAL 40 DAY)
   GROUP BY 1
 )
 SELECT
-  DATE(TIMESTAMP_ADD(p.ts_calif_utc, INTERVAL @tz_offset HOUR)) AS fecha_local,
-  EXTRACT(HOUR FROM TIMESTAMP_ADD(p.ts_calif_utc, INTERVAL @tz_offset HOUR)) + 1 AS hora_1_24,
+  DATE(DATETIME_ADD(p.ts_calif_utc, INTERVAL __TZ_OFFSET__ HOUR)) AS fecha_local,
+  EXTRACT(HOUR FROM DATETIME_ADD(p.ts_calif_utc, INTERVAL __TZ_OFFSET__ HOUR)) + 1 AS hora_1_24,
   f.fuente_label,
-  COUNT(DISTINCT p.nid) AS calificados
+  COUNT(DISTINCT p.deal_id) AS calificados
 FROM primer_calif p
-JOIN lead_fuente f USING (nid)
+JOIN lead_fuente f USING (deal_id)
 WHERE f.fuente_label IS NOT NULL
 GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3
 ```
 
 **Notas de implementación:**
-- MX: `habi_db_history_state` usa `deal_id` que mapea a `id_negocio` de TIG-MX. Hay que confirmar si `TIG-MX` ya tiene `nid` o si se necesita un JOIN intermedio con `habi_db_property_deal`. Si la columna `nid` existe en TIG-MX (sí existe, según `tablas_core.md`), usar directo.
+- Filtro CO incluye solo Leadforms ID `47` (los legacy 37/41/42 no aparecen en TIG CO mayo 2026). Si vuelven, se agregan al CASE como `WHEN 37 THEN 'Leadforms'` etc.
+- Filtro MX incluye `46` (Propiedades) en lugar de `20` (CRM no aplica en MX). El SQL es el mismo SET literal `(3,7,20,35,39,46,47)` — en MX simplemente no hay rows con `fuente_id=20`.
 - Ventana 40 días en `primer_calif` → cubre `today` + `prev_week` (-7d) + 4 mismos-días-de-semana **anteriores a prev_week** (-14d, -21d, -28d, -35d) + 5d de buffer por TZ.
 - Ventana 60 días en `lead_fuente` → cubre leads creados antes de hoy que califican hoy.
+- Validación 2026-05-19 contra BQ: CO 90-340 calificados/día, MX 100-250/día (orden de magnitud sensato).
 
 ## Shape del `data.json`
 
@@ -211,5 +239,5 @@ Antes de declarar éxito:
 
 - **Frescura real de las tablas operativas en BQ.** El delay típico de `historico_estado_v2` y `tabla_inmuebles_general` no está medido formalmente; se asume 30 min - 2h. Si el delay es mayor, el tablero pierde valor "live". → Mitigar mostrando el delay típico en el footer y validando empíricamente en la verificación.
 - **Volumen de commits.** 96 commits/día solo a `data.json`. Trade-off aceptado en V1; Fase 2 mover a GCS si molesta.
-- **MX `nid` en `habi_db_history_state`.** Confirmar al implementar si el JOIN directo `deal_id ↔ nid` funciona o requiere intermedio. Validable en 1 query de smoke test antes de armar el SQL final.
 - **Fuente "Otro"** (fuente_id fuera de las 6 oficiales). Quedan excluidos en V1 (filtro `IN (...)` en la query). Si Marketing quiere verlos, los reincluimos con etiqueta "Otro".
+- **Reincorporación de Leadforms legacy 37/41/42.** Si vuelven a aparecer en TIG CO, se agregan al CASE WHEN del query.sql.
