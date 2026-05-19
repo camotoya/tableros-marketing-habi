@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📢</text></svg>">
+  <title>Desempeño hoy · Tableros Marketing</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a; color: #f8fafc; padding: 24px; min-height: 100vh;
+    }
+    .back-link {
+      color: #94a3b8; text-decoration: none; font-size: 14px;
+      display: inline-block; margin-bottom: 16px;
+    }
+    .back-link:hover { color: #f8fafc; }
+
+    header.titlebar {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 4px;
+    }
+    h1 { font-size: 24px; font-weight: 600; }
+    .subtitle { color: #94a3b8; font-size: 13px; margin-bottom: 20px; }
+
+    .freshness {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: #94a3b8;
+    }
+    .freshness .pill {
+      background: #1e293b; border: 1px solid #334155; padding: 4px 10px;
+      border-radius: 999px;
+    }
+    .freshness button.reload {
+      background: #1e293b; border: 1px solid #334155; color: #f8fafc;
+      padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    }
+    .freshness button.reload:hover { border-color: #818cf8; }
+
+    .selectors {
+      display: flex; gap: 24px; flex-wrap: wrap;
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 16px; margin-bottom: 20px;
+    }
+    .selector-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .selector-group label {
+      font-size: 11px; color: #94a3b8; text-transform: uppercase;
+      letter-spacing: 0.5px; font-weight: 600; margin-right: 4px;
+    }
+    .chip {
+      background: #0f172a; border: 1px solid #334155; color: #e2e8f0;
+      padding: 6px 12px; border-radius: 999px; cursor: pointer; font-size: 13px;
+      transition: all 0.1s;
+    }
+    .chip:hover { border-color: #818cf8; }
+    .chip.active { background: #818cf8; color: #0f172a; border-color: #818cf8; font-weight: 600; }
+
+    .kpis {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;
+    }
+    @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+    .kpi-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 16px;
+    }
+    .kpi-label {
+      font-size: 11px; color: #94a3b8; text-transform: uppercase;
+      letter-spacing: 0.5px; font-weight: 600;
+    }
+    .kpi-value { font-size: 32px; font-weight: 700; margin-top: 4px; }
+    .kpi-delta { font-size: 12px; margin-top: 6px; color: #94a3b8; }
+    .kpi-delta.up { color: #4ade80; }
+    .kpi-delta.down { color: #f87171; }
+
+    .chart-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 20px; margin-bottom: 24px;
+    }
+    .chart-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
+    .chart-wrap { position: relative; height: 420px; }
+
+    footer.notas {
+      color: #64748b; font-size: 12px; line-height: 1.6;
+      border-top: 1px solid #1e293b; padding-top: 16px;
+    }
+    .warn-banner {
+      text-align: center; padding: 12px; margin-bottom: 16px;
+      color: #fbbf24; border: 1px solid #78350f; background: #422006;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+  <a href="../" class="back-link">← Volver (Tableros Marketing Sellers)</a>
+
+  <header class="titlebar">
+    <div>
+      <h1>Desempeño hoy · Calificados</h1>
+      <div class="subtitle">Calificados MM (estados 20/63) — primer entrance — hora local del país</div>
+    </div>
+    <div class="freshness">
+      <span class="pill" id="last-update">Cargando…</span>
+      <button class="reload" id="btn-reload">⟳ Recargar</button>
+    </div>
+  </header>
+
+  <div id="warn-banner" class="warn-banner" hidden>⚠ Datos retrasados — última corrida hace más de 45 min</div>
+
+  <div class="selectors">
+    <div class="selector-group">
+      <label>País</label>
+      <button class="chip active" data-pais="co">CO</button>
+      <button class="chip" data-pais="mx">MX</button>
+    </div>
+    <div class="selector-group">
+      <label>Vista</label>
+      <button class="chip active" data-vista="acumulado">Acumulado</button>
+      <button class="chip" data-vista="por_hora">Por hora</button>
+    </div>
+    <div class="selector-group" id="fuentes-group">
+      <label>Fuentes</label>
+      <button class="chip active" id="chip-todas">Todas</button>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi-card">
+      <div class="kpi-label">Hoy hasta ahora</div>
+      <div class="kpi-value" id="kpi-hoy">—</div>
+      <div class="kpi-delta" id="kpi-hoy-delta">vs prom al mismo punto: —</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Mismo día sem. pasada (total)</div>
+      <div class="kpi-value" id="kpi-prev">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Prom. últimos 4 (total)</div>
+      <div class="kpi-value" id="kpi-avg">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Ritmo hora actual</div>
+      <div class="kpi-value" id="kpi-ritmo">—</div>
+      <div class="kpi-delta" id="kpi-ritmo-delta">vs prom hora: —</div>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h2 id="chart-title">Calificados por hora — Acumulado</h2>
+    <div class="chart-wrap"><canvas id="chart-main"></canvas></div>
+  </div>
+
+  <footer class="notas">
+    Fuente: <code>tabla_inmuebles_general</code> + <code>historico_estado_v2</code> / <code>habi_db_history_state</code> (MM).
+    Delay típico de BQ 30 min – 2 h.
+    Workflow corre cada 15 min UTC. Hora local del país seleccionado (CO UTC-5, MX UTC-6, sin DST).
+  </footer>
+
+  <script>
+    const state = {
+      data: null,
+      pais: 'co',
+      vista: 'acumulado',
+      fuentes: new Set(),
+    };
+    let chartInstance = null;
+    const WEEKDAY_LABELS = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
+
+    async function loadData() {
+      try {
+        const r = await fetch('data.json?t=' + Date.now(), { cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        state.data = await r.json();
+        applyFreshness();
+        renderFuentes();
+        render();
+      } catch (e) {
+        document.getElementById('last-update').textContent = 'Error al cargar';
+        console.error(e);
+      }
+    }
+
+    function applyFreshness() {
+      const generated = new Date(state.data.generated_at_iso);
+      const diffMin = Math.round((new Date() - generated) / 60000);
+      let txt;
+      if (diffMin < 1) txt = 'hace <1 min';
+      else if (diffMin < 60) txt = 'hace ' + diffMin + ' min';
+      else txt = 'hace ' + Math.floor(diffMin / 60) + 'h ' + (diffMin % 60) + 'min';
+      document.getElementById('last-update').textContent = 'Última actualización: ' + txt;
+      document.getElementById('warn-banner').hidden = diffMin <= 45;
+    }
+
+    function renderFuentes() {
+      const group = document.getElementById('fuentes-group');
+      [...group.querySelectorAll('.chip:not(#chip-todas)')].forEach(c => c.remove());
+      const sources = state.data[state.pais].sources;
+      state.fuentes = new Set(sources);
+      for (const s of sources) {
+        const c = document.createElement('button');
+        c.className = 'chip active';
+        c.dataset.fuente = s;
+        c.textContent = s;
+        c.addEventListener('click', () => toggleFuente(s, c));
+        group.appendChild(c);
+      }
+      document.getElementById('chip-todas').classList.add('active');
+    }
+
+    function toggleFuente(s, chipEl) {
+      if (state.fuentes.has(s)) state.fuentes.delete(s);
+      else state.fuentes.add(s);
+      chipEl.classList.toggle('active');
+      const allOn = state.fuentes.size === state.data[state.pais].sources.length;
+      document.getElementById('chip-todas').classList.toggle('active', allOn);
+      render();
+    }
+
+    function toggleTodas() {
+      const sources = state.data[state.pais].sources;
+      const allOn = state.fuentes.size === sources.length;
+      if (allOn) {
+        state.fuentes.clear();
+        document.querySelectorAll('#fuentes-group .chip:not(#chip-todas)').forEach(c => c.classList.remove('active'));
+        document.getElementById('chip-todas').classList.remove('active');
+      } else {
+        state.fuentes = new Set(sources);
+        document.querySelectorAll('#fuentes-group .chip:not(#chip-todas)').forEach(c => c.classList.add('active'));
+        document.getElementById('chip-todas').classList.add('active');
+      }
+      render();
+    }
+
+    function sumByHour(series) {
+      const sources = [...state.fuentes];
+      const out = new Array(24).fill(0);
+      for (let i = 0; i < 24; i++) {
+        let anyVal = false, anyNull = false;
+        let sum = 0;
+        for (const s of sources) {
+          const v = (series[s] || [])[i];
+          if (v === null || v === undefined) { anyNull = true; continue; }
+          anyVal = true;
+          sum += v;
+        }
+        if (sources.length === 0) out[i] = 0;
+        else if (!anyVal && anyNull) out[i] = null;
+        else out[i] = sum;
+      }
+      return out;
+    }
+
+    function toCumulative(arr) {
+      let acc = 0;
+      return arr.map(v => {
+        if (v === null || v === undefined) return null;
+        acc += v;
+        return acc;
+      });
+    }
+
+    function sumValid(arr) {
+      return arr.reduce((s, v) => s + (v == null ? 0 : v), 0);
+    }
+
+    function render() {
+      if (!state.data) return;
+      const p = state.data[state.pais];
+      const todayHr = sumByHour(p.by_hour.today);
+      const prevHr  = sumByHour(p.by_hour.prev_week);
+      const avgHr   = sumByHour(p.by_hour.avg_4_weekdays);
+
+      const todaySer = state.vista === 'acumulado' ? toCumulative(todayHr) : todayHr;
+      const prevSer  = state.vista === 'acumulado' ? toCumulative(prevHr)  : prevHr;
+      const avgSer   = state.vista === 'acumulado' ? toCumulative(avgHr)   : avgHr;
+
+      const totalHoy = sumValid(todayHr);
+      const totalPrev = sumValid(prevHr);
+      const totalAvg = +sumValid(avgHr).toFixed(1);
+      document.getElementById('kpi-hoy').textContent = totalHoy.toLocaleString('es-CO');
+      document.getElementById('kpi-prev').textContent = totalPrev.toLocaleString('es-CO');
+      document.getElementById('kpi-avg').textContent = totalAvg.toLocaleString('es-CO');
+
+      let lastIdx = -1;
+      for (let i = 0; i < 24; i++) if (todayHr[i] !== null && todayHr[i] !== undefined) lastIdx = i;
+      const ritmoHoy = lastIdx >= 0 ? todayHr[lastIdx] : 0;
+      const ritmoAvg = lastIdx >= 0 ? avgHr[lastIdx] : 0;
+      document.getElementById('kpi-ritmo').textContent = ritmoHoy.toLocaleString('es-CO') + ' /h';
+      const dRitmo = ritmoAvg > 0 ? Math.round((ritmoHoy - ritmoAvg) / ritmoAvg * 100) : 0;
+      const deltaR = document.getElementById('kpi-ritmo-delta');
+      deltaR.textContent = 'vs prom hora: ' + (dRitmo >= 0 ? '+' : '') + dRitmo + '%';
+      deltaR.className = 'kpi-delta ' + (dRitmo >= 0 ? 'up' : 'down');
+
+      const promAtCurrent = lastIdx >= 0 ? sumValid(avgHr.slice(0, lastIdx + 1)) : 0;
+      const dHoy = promAtCurrent > 0 ? Math.round((totalHoy - promAtCurrent) / promAtCurrent * 100) : 0;
+      const deltaH = document.getElementById('kpi-hoy-delta');
+      deltaH.textContent = 'vs prom al mismo punto: ' + (dHoy >= 0 ? '+' : '') + dHoy + '%';
+      deltaH.className = 'kpi-delta ' + (dHoy >= 0 ? 'up' : 'down');
+
+      const wdLabel = WEEKDAY_LABELS[p.today_weekday];
+      const vistaLabel = state.vista === 'acumulado' ? 'Acumulado' : 'Por hora';
+      document.getElementById('chart-title').textContent = 'Calificados por hora — ' + vistaLabel;
+
+      const labels = Array.from({length: 24}, (_, i) => String(i + 1));
+      const datasets = [
+        {
+          label: 'Hoy',
+          data: todaySer,
+          borderColor: '#818cf8', backgroundColor: '#818cf8',
+          borderWidth: 3, tension: 0.25, spanGaps: false,
+        },
+        {
+          label: 'Hace 7 días (mismo ' + wdLabel + ')',
+          data: prevSer,
+          borderColor: '#94a3b8', borderDash: [6, 4], borderWidth: 2,
+          tension: 0.25, pointRadius: 0, backgroundColor: 'transparent',
+        },
+        {
+          label: 'Prom. 4 últimos ' + wdLabel,
+          data: avgSer,
+          borderColor: '#fbbf24', borderDash: [3, 3], borderWidth: 2,
+          tension: 0.25, pointRadius: 0, backgroundColor: 'transparent',
+        },
+      ];
+
+      if (chartInstance) chartInstance.destroy();
+      const ctx = document.getElementById('chart-main').getContext('2d');
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { color: '#e2e8f0', font: { size: 12 } } },
+            tooltip: {
+              backgroundColor: '#0f172a', borderColor: '#334155',
+              borderWidth: 1, titleColor: '#f8fafc', bodyColor: '#e2e8f0',
+              callbacks: { title: items => 'Hora ' + items[0].label },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' },
+              title: { display: true, text: 'Hora local (1-24)', color: '#94a3b8' },
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' },
+              title: {
+                display: true,
+                text: state.vista === 'acumulado' ? 'Calificados acumulados' : 'Calificados / hora',
+                color: '#94a3b8',
+              },
+            },
+          },
+        },
+      });
+    }
+
+    document.querySelectorAll('.chip[data-pais]').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.chip[data-pais]').forEach(x => x.classList.remove('active'));
+        el.classList.add('active');
+        state.pais = el.dataset.pais;
+        renderFuentes();
+        render();
+      });
+    });
+    document.querySelectorAll('.chip[data-vista]').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('.chip[data-vista]').forEach(x => x.classList.remove('active'));
+        el.classList.add('active');
+        state.vista = el.dataset.vista;
+        render();
+      });
+    });
+    document.getElementById('chip-todas').addEventListener('click', toggleTodas);
+    document.getElementById('btn-reload').addEventListener('click', loadData);
+
+    setInterval(loadData, 5 * 60 * 1000);
+    loadData();
+  </script>
+</body>
+</html>
