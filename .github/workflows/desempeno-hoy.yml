@@ -1,0 +1,71 @@
+name: Desempeño hoy (live data)
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: desempeno-hoy
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Authenticate with user credentials
+        run: |
+          echo '${{ secrets.GCP_CREDENTIALS }}' > /tmp/adc.json
+          gcloud config set project ${{ secrets.GCP_PROJECT }}
+          echo "CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE=/tmp/adc.json" >> $GITHUB_ENV
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/adc.json" >> $GITHUB_ENV
+
+      - name: Render and run CO query
+        run: |
+          sed -e 's|__TIG__|papyrus-data.habi_wh_bi.tabla_inmuebles_general|g' \
+              -e 's|__TIG_ID__|negocio_id|g' \
+              -e 's|__HIST__|sellers-main-prod.co_rds_staging.habi_db_tabla_historico_estado_v2|g' \
+              -e 's|__HIST_ID__|negocio_id|g' \
+              -e 's|__STATE_COL__|estado_id|g' \
+              -e 's|__FECHA_COL__|fecha_actualizacion|g' \
+              -e 's|__TZ_OFFSET__|-5|g' \
+              desempeno-hoy/query.sql > /tmp/dq_co.sql
+          bq query --use_legacy_sql=false --format=json --max_rows=50000 < /tmp/dq_co.sql > /tmp/dq_co.json
+          echo "CO bytes: $(wc -c < /tmp/dq_co.json)"
+
+      - name: Render and run MX query
+        run: |
+          sed -e 's|__TIG__|papyrus-data-mx.habi_wh_bi.tabla_inmuebles_general|g' \
+              -e 's|__TIG_ID__|id_negocio|g' \
+              -e 's|__HIST__|sellers-main-prod.mx_rds_staging.habi_db_history_state|g' \
+              -e 's|__HIST_ID__|deal_id|g' \
+              -e 's|__STATE_COL__|state_id|g' \
+              -e 's|__FECHA_COL__|date_create|g' \
+              -e 's|__TZ_OFFSET__|-6|g' \
+              desempeno-hoy/query.sql > /tmp/dq_mx.sql
+          bq query --use_legacy_sql=false --format=json --max_rows=50000 < /tmp/dq_mx.sql > /tmp/dq_mx.json
+          echo "MX bytes: $(wc -c < /tmp/dq_mx.json)"
+
+      - name: Build data.json
+        run: |
+          python3 scripts/desempeno_hoy_to_json.py /tmp/dq_co.json /tmp/dq_mx.json desempeno-hoy/data.json
+          python3 -c "import json; d=json.load(open('desempeno-hoy/data.json')); print('generated:', d['generated_at_iso']); print('CO today total:', d['co']['totals']['today_so_far']['_all']); print('MX today total:', d['mx']['totals']['today_so_far']['_all'])"
+
+      - name: Commit if changed
+        run: |
+          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git add desempeno-hoy/data.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "data: refresh desempeno-hoy $(date -u +%Y-%m-%dT%H:%MZ)"
+            git push
+          fi
