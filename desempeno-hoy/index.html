@@ -76,10 +76,19 @@
 
     .chart-card {
       background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-      padding: 20px; margin-bottom: 24px;
+      padding: 20px;
     }
-    .chart-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; }
-    .chart-wrap { position: relative; height: 420px; }
+    .chart-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: #cbd5e1; }
+    .chart-wrap { position: relative; height: 360px; }
+
+    .metric-section { margin-bottom: 32px; }
+    .metric-section .section-title {
+      font-size: 18px; font-weight: 600; margin-bottom: 16px;
+      display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    }
+    .metric-section .section-sub {
+      font-size: 12px; font-weight: 400; color: #94a3b8;
+    }
 
     footer.notas {
       color: #64748b; font-size: 12px; line-height: 1.6;
@@ -90,6 +99,12 @@
       color: #fbbf24; border: 1px solid #78350f; background: #422006;
       border-radius: 12px;
     }
+    .lag-banner {
+      padding: 10px 14px; margin-bottom: 16px;
+      color: #fbbf24; border: 1px solid #78350f; background: #2c1a08;
+      border-radius: 8px; font-size: 13px; line-height: 1.4;
+    }
+    .lag-banner code { background: #422006; padding: 1px 5px; border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -125,36 +140,71 @@
     </div>
   </div>
 
-  <div class="kpis">
-    <div class="kpi-card">
-      <div class="kpi-label">Hoy hasta ahora</div>
-      <div class="kpi-value" id="kpi-hoy">—</div>
-      <div class="kpi-delta" id="kpi-hoy-delta">vs prom al mismo punto: —</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Mismo día sem. pasada (total)</div>
-      <div class="kpi-value" id="kpi-prev">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Prom. últimos 4 (total)</div>
-      <div class="kpi-value" id="kpi-avg">—</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">Ritmo hora actual</div>
-      <div class="kpi-value" id="kpi-ritmo">—</div>
-      <div class="kpi-delta" id="kpi-ritmo-delta">vs prom hora: —</div>
-    </div>
-  </div>
+  <div id="bq-lag-banner" class="lag-banner" hidden></div>
 
-  <div class="chart-card">
-    <h2 id="chart-title">Calificados por hora — Acumulado</h2>
-    <div class="chart-wrap"><canvas id="chart-main"></canvas></div>
-  </div>
+  <!-- Sección REGISTROS -->
+  <section class="metric-section" data-metric="registros">
+    <h2 class="section-title">Registros · <span class="section-sub">fecha de creación en TIG</span></h2>
+    <div class="kpis">
+      <div class="kpi-card">
+        <div class="kpi-label">Hoy hasta ahora</div>
+        <div class="kpi-value" data-kpi="hoy">—</div>
+        <div class="kpi-delta" data-kpi="hoy-delta">vs prom al mismo punto: —</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Mismo día sem. pasada (total)</div>
+        <div class="kpi-value" data-kpi="prev">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Prom. últimos 4 (total)</div>
+        <div class="kpi-value" data-kpi="avg">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ritmo hora actual</div>
+        <div class="kpi-value" data-kpi="ritmo">—</div>
+        <div class="kpi-delta" data-kpi="ritmo-delta">vs prom hora: —</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3 data-chart-title>Registros por hora — Acumulado</h3>
+      <div class="chart-wrap"><canvas data-canvas="registros"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Sección CALIFICADOS -->
+  <section class="metric-section" data-metric="calificados">
+    <h2 class="section-title">Calificados · <span class="section-sub">primer entrance a estado 20 o 63 MM</span></h2>
+    <div class="kpis">
+      <div class="kpi-card">
+        <div class="kpi-label">Hoy hasta ahora</div>
+        <div class="kpi-value" data-kpi="hoy">—</div>
+        <div class="kpi-delta" data-kpi="hoy-delta">vs prom al mismo punto: —</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Mismo día sem. pasada (total)</div>
+        <div class="kpi-value" data-kpi="prev">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Prom. últimos 4 (total)</div>
+        <div class="kpi-value" data-kpi="avg">—</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ritmo hora actual</div>
+        <div class="kpi-value" data-kpi="ritmo">—</div>
+        <div class="kpi-delta" data-kpi="ritmo-delta">vs prom hora: —</div>
+      </div>
+    </div>
+    <div class="chart-card">
+      <h3 data-chart-title>Calificados por hora — Acumulado</h3>
+      <div class="chart-wrap"><canvas data-canvas="calificados"></canvas></div>
+    </div>
+  </section>
 
   <footer class="notas">
-    Fuente: <code>tabla_inmuebles_general</code> + <code>historico_estado_v2</code> / <code>habi_db_history_state</code> (MM).
-    Delay típico de BQ 30 min – 2 h.
+    Fuentes: <code>tabla_inmuebles_general</code> (registros · fecha_creacion) +
+    <code>historico_estado_v2</code> / <code>habi_db_history_state</code> (calificados · primer entrance a 20/63 MM).
     Workflow corre cada 15 min UTC. Hora local del país seleccionado (CO UTC-5, MX UTC-6, sin DST).
+    Las tablas replican desde Postgres-prod con lag típico de 1–5h — el banner naranja arriba muestra la última hora con datos observada.
   </footer>
 
   <script>
@@ -164,8 +214,9 @@
       vista: 'acumulado',
       fuentes: new Set(),
     };
-    let chartInstance = null;
+    const chartInstances = { registros: null, calificados: null };
     const WEEKDAY_LABELS = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
+    const METRIC_LABELS = { registros: 'Registros', calificados: 'Calificados' };
 
     async function loadData() {
       try {
@@ -173,8 +224,9 @@
         if (!r.ok) throw new Error('HTTP ' + r.status);
         state.data = await r.json();
         applyFreshness();
+        renderLagBanner();
         renderFuentes();
-        render();
+        renderAll();
       } catch (e) {
         document.getElementById('last-update').textContent = 'Error al cargar';
         console.error(e);
@@ -190,6 +242,27 @@
       else txt = 'hace ' + Math.floor(diffMin / 60) + 'h ' + (diffMin % 60) + 'min';
       document.getElementById('last-update').textContent = 'Última actualización: ' + txt;
       document.getElementById('warn-banner').hidden = diffMin <= 45;
+    }
+
+    function renderLagBanner() {
+      const p = state.data[state.pais];
+      const banner = document.getElementById('bq-lag-banner');
+      const currentHour = p.current_hour_1_24;
+      const lastReg = p.registros.last_hour_with_data;
+      const lastCal = p.calificados.last_hour_with_data;
+      if (lastReg === null && lastCal === null) {
+        banner.hidden = true;
+        return;
+      }
+      const minLast = Math.min(lastReg ?? 99, lastCal ?? 99);
+      const lagHours = currentHour - minLast;
+      if (lagHours < 1) {
+        banner.hidden = true;
+        return;
+      }
+      const paisLabel = state.pais.toUpperCase();
+      banner.innerHTML = `⚠ Lag de BigQuery: última hora con datos en <b>${paisLabel}</b> es la <code>${minLast}</code> (registros: <code>${lastReg ?? '—'}</code> · calificados: <code>${lastCal ?? '—'}</code>). Hora actual local: <code>${currentHour}</code>. Los valores recientes pueden aumentar cuando BQ termine de replicar (típico 1–5h).`;
+      banner.hidden = false;
     }
 
     function renderFuentes() {
@@ -214,7 +287,7 @@
       chipEl.classList.toggle('active');
       const allOn = state.fuentes.size === state.data[state.pais].sources.length;
       document.getElementById('chip-todas').classList.toggle('active', allOn);
-      render();
+      renderAll();
     }
 
     function toggleTodas() {
@@ -229,7 +302,7 @@
         document.querySelectorAll('#fuentes-group .chip:not(#chip-todas)').forEach(c => c.classList.add('active'));
         document.getElementById('chip-todas').classList.add('active');
       }
-      render();
+      renderAll();
     }
 
     function sumByHour(series) {
@@ -264,12 +337,20 @@
       return arr.reduce((s, v) => s + (v == null ? 0 : v), 0);
     }
 
-    function render() {
+    function renderAll() {
       if (!state.data) return;
+      renderMetric('registros');
+      renderMetric('calificados');
+      renderLagBanner();
+    }
+
+    function renderMetric(metric) {
       const p = state.data[state.pais];
-      const todayHr = sumByHour(p.by_hour.today);
-      const prevHr  = sumByHour(p.by_hour.prev_week);
-      const avgHr   = sumByHour(p.by_hour.avg_4_weekdays);
+      const block = p[metric];
+      const section = document.querySelector(`section[data-metric="${metric}"]`);
+      const todayHr = sumByHour(block.by_hour.today);
+      const prevHr  = sumByHour(block.by_hour.prev_week);
+      const avgHr   = sumByHour(block.by_hour.avg_4_weekdays);
 
       const todaySer = state.vista === 'acumulado' ? toCumulative(todayHr) : todayHr;
       const prevSer  = state.vista === 'acumulado' ? toCumulative(prevHr)  : prevHr;
@@ -278,29 +359,29 @@
       const totalHoy = sumValid(todayHr);
       const totalPrev = sumValid(prevHr);
       const totalAvg = +sumValid(avgHr).toFixed(1);
-      document.getElementById('kpi-hoy').textContent = totalHoy.toLocaleString('es-CO');
-      document.getElementById('kpi-prev').textContent = totalPrev.toLocaleString('es-CO');
-      document.getElementById('kpi-avg').textContent = totalAvg.toLocaleString('es-CO');
+      section.querySelector('[data-kpi="hoy"]').textContent = totalHoy.toLocaleString('es-CO');
+      section.querySelector('[data-kpi="prev"]').textContent = totalPrev.toLocaleString('es-CO');
+      section.querySelector('[data-kpi="avg"]').textContent = totalAvg.toLocaleString('es-CO');
 
       let lastIdx = -1;
       for (let i = 0; i < 24; i++) if (todayHr[i] !== null && todayHr[i] !== undefined) lastIdx = i;
       const ritmoHoy = lastIdx >= 0 ? todayHr[lastIdx] : 0;
       const ritmoAvg = lastIdx >= 0 ? avgHr[lastIdx] : 0;
-      document.getElementById('kpi-ritmo').textContent = ritmoHoy.toLocaleString('es-CO') + ' /h';
+      section.querySelector('[data-kpi="ritmo"]').textContent = ritmoHoy.toLocaleString('es-CO') + ' /h';
       const dRitmo = ritmoAvg > 0 ? Math.round((ritmoHoy - ritmoAvg) / ritmoAvg * 100) : 0;
-      const deltaR = document.getElementById('kpi-ritmo-delta');
+      const deltaR = section.querySelector('[data-kpi="ritmo-delta"]');
       deltaR.textContent = 'vs prom hora: ' + (dRitmo >= 0 ? '+' : '') + dRitmo + '%';
       deltaR.className = 'kpi-delta ' + (dRitmo >= 0 ? 'up' : 'down');
 
       const promAtCurrent = lastIdx >= 0 ? sumValid(avgHr.slice(0, lastIdx + 1)) : 0;
       const dHoy = promAtCurrent > 0 ? Math.round((totalHoy - promAtCurrent) / promAtCurrent * 100) : 0;
-      const deltaH = document.getElementById('kpi-hoy-delta');
+      const deltaH = section.querySelector('[data-kpi="hoy-delta"]');
       deltaH.textContent = 'vs prom al mismo punto: ' + (dHoy >= 0 ? '+' : '') + dHoy + '%';
       deltaH.className = 'kpi-delta ' + (dHoy >= 0 ? 'up' : 'down');
 
       const wdLabel = WEEKDAY_LABELS[p.today_weekday];
       const vistaLabel = state.vista === 'acumulado' ? 'Acumulado' : 'Por hora';
-      document.getElementById('chart-title').textContent = 'Calificados por hora — ' + vistaLabel;
+      section.querySelector('[data-chart-title]').textContent = METRIC_LABELS[metric] + ' por hora — ' + vistaLabel;
 
       const labels = Array.from({length: 24}, (_, i) => String(i + 1));
       const datasets = [
@@ -324,9 +405,10 @@
         },
       ];
 
-      if (chartInstance) chartInstance.destroy();
-      const ctx = document.getElementById('chart-main').getContext('2d');
-      chartInstance = new Chart(ctx, {
+      if (chartInstances[metric]) chartInstances[metric].destroy();
+      const canvas = section.querySelector(`canvas[data-canvas="${metric}"]`);
+      const ctx = canvas.getContext('2d');
+      chartInstances[metric] = new Chart(ctx, {
         type: 'line',
         data: { labels, datasets },
         options: {
@@ -351,7 +433,9 @@
               ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' },
               title: {
                 display: true,
-                text: state.vista === 'acumulado' ? 'Calificados acumulados' : 'Calificados / hora',
+                text: state.vista === 'acumulado'
+                  ? METRIC_LABELS[metric] + ' acumulados'
+                  : METRIC_LABELS[metric] + ' / hora',
                 color: '#94a3b8',
               },
             },
@@ -366,7 +450,7 @@
         el.classList.add('active');
         state.pais = el.dataset.pais;
         renderFuentes();
-        render();
+        renderAll();
       });
     });
     document.querySelectorAll('.chip[data-vista]').forEach(el => {
@@ -374,7 +458,7 @@
         document.querySelectorAll('.chip[data-vista]').forEach(x => x.classList.remove('active'));
         el.classList.add('active');
         state.vista = el.dataset.vista;
-        render();
+        renderAll();
       });
     });
     document.getElementById('chip-todas').addEventListener('click', toggleTodas);

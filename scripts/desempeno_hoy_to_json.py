@@ -3,8 +3,9 @@
 Construye desempeno-hoy/data.json desde 2 salidas BQ (CO + MX).
 
 Input shape (`bq query --format=json`):
-  list of {"fecha_local": "YYYY-MM-DD", "hora_1_24": int (1..24),
-           "fuente_label": str, "calificados": int}
+  list of {"metric": "registros"|"calificados",
+           "fecha_local": "YYYY-MM-DD", "hora_1_24": int (1..24),
+           "fuente_label": str, "n": int}
 
 Uso:
   desempeno_hoy_to_json.py <co_bq.json> <mx_bq.json> <out_data.json>
@@ -17,27 +18,22 @@ from datetime import date, datetime, timedelta, timezone
 TZ_OFFSET = {"co": -5, "mx": -6}
 SOURCES_CO = ["WEB", "Habimetro", "Leadforms", "CRM", "Broker", "Comercial"]
 SOURCES_MX = ["WEB", "Habimetro", "Leadforms", "Propiedades", "Broker", "Comercial"]
+METRICS = ["registros", "calificados"]
 
 
-def build_country(rows, country):
-    tz = TZ_OFFSET[country]
-    now_local = datetime.now(timezone.utc) + timedelta(hours=tz)
-    today_local = now_local.date()
-    today_weekday = today_local.weekday()  # 0=lun..6=dom
-    current_hour_idx = now_local.hour      # 0..23
-    sources = SOURCES_CO if country == "co" else SOURCES_MX
-
-    # (fecha, fuente) -> [24]
+def build_metric(rows, metric, sources, today_local, current_hour_idx):
+    """Construye la sección by_hour + totals para una métrica."""
     by_date_src = defaultdict(lambda: [0] * 24)
     for r in rows:
-        d = date.fromisoformat(r["fecha_local"])
+        if r["metric"] != metric:
+            continue
         s = r["fuente_label"]
         if s not in sources:
             continue
-        h = int(r["hora_1_24"]) - 1  # 0..23
-        by_date_src[(d, s)][h] = int(r["calificados"])
+        d = date.fromisoformat(r["fecha_local"])
+        h = int(r["hora_1_24"]) - 1
+        by_date_src[(d, s)][h] = int(r["n"])
 
-    # today: null para horas futuras
     by_hour_today = {}
     for s in sources:
         arr = list(by_date_src.get((today_local, s), [0] * 24))
@@ -68,11 +64,20 @@ def build_country(rows, country):
     totals_avg = {s: round(sum_arr(by_hour_avg[s]), 2) for s in sources}
     totals_avg["_all"] = round(sum(totals_avg.values()), 2)
 
+    # Última hora del día actual con datos > 0 (para indicador de freshness)
+    last_hour_with_data = None
+    today_all = [0] * 24
+    for s in sources:
+        for i in range(24):
+            v = by_hour_today[s][i]
+            if v is not None and v > 0:
+                today_all[i] += v
+    for i in range(23, -1, -1):
+        if today_all[i] > 0:
+            last_hour_with_data = i + 1  # eje 1-24
+            break
+
     return {
-        "today_date": today_local.isoformat(),
-        "today_weekday": today_weekday,
-        "current_hour_1_24": current_hour_idx + 1,
-        "sources": sources,
         "by_hour": {
             "today": by_hour_today,
             "prev_week": by_hour_prev,
@@ -83,6 +88,25 @@ def build_country(rows, country):
             "prev_week": totals_prev,
             "avg_4_weekdays": totals_avg,
         },
+        "last_hour_with_data": last_hour_with_data,
+    }
+
+
+def build_country(rows, country):
+    tz = TZ_OFFSET[country]
+    now_local = datetime.now(timezone.utc) + timedelta(hours=tz)
+    today_local = now_local.date()
+    today_weekday = today_local.weekday()
+    current_hour_idx = now_local.hour
+    sources = SOURCES_CO if country == "co" else SOURCES_MX
+
+    return {
+        "today_date": today_local.isoformat(),
+        "today_weekday": today_weekday,
+        "current_hour_1_24": current_hour_idx + 1,
+        "sources": sources,
+        "registros":   build_metric(rows, "registros",   sources, today_local, current_hour_idx),
+        "calificados": build_metric(rows, "calificados", sources, today_local, current_hour_idx),
     }
 
 
