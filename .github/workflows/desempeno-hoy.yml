@@ -56,7 +56,7 @@ jobs:
       - name: Build data.json
         run: |
           python3 scripts/desempeno_hoy_to_json.py /tmp/dq_co.json /tmp/dq_mx.json desempeno-hoy/data.json
-          python3 -c "import json; d=json.load(open('desempeno-hoy/data.json')); print('generated:', d['generated_at_iso']); print('CO today total:', d['co']['totals']['today_so_far']['_all']); print('MX today total:', d['mx']['totals']['today_so_far']['_all'])"
+          python3 -c "import json; d=json.load(open('desempeno-hoy/data.json')); print('generated:', d['generated_at_iso']); print('CO regs:', d['co']['registros']['totals']['today_so_far']['_all'], 'calif:', d['co']['calificados']['totals']['today_so_far']['_all']); print('MX regs:', d['mx']['registros']['totals']['today_so_far']['_all'], 'calif:', d['mx']['calificados']['totals']['today_so_far']['_all'])"
 
       - name: Commit if changed
         run: |
